@@ -1,6 +1,6 @@
 import { farmReducer as baseFarmReducer, initialFarmState as baseInitialFarmState } from './farmReducer';
 
-export const VET_PROTO_STORAGE_KEY = 'avicontrol_vet_proto_v1';
+export const VET_PROTO_STORAGE_KEY = 'avicontrol_vet_proto_v2';
 
 export const initialVetProtoState = {
   // 1. Galpones y Lotes del ecosistema (Módulo 1 / Plan 001)

@@ -13,7 +13,6 @@ function VetDashboardPage() {
     validateIsolationRequest
   } = useContext(FarmContext);
 
-  // Modales rápidos directamente desde el Dashboard P-02
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [evaluatingRequest, setEvaluatingRequest] = useState(null);
   const [evalResult, setEvalResult] = useState('APROBADA');
@@ -68,7 +67,10 @@ function VetDashboardPage() {
 
   return (
     <VetShell activeNav="inicio">
-      <main className="flex-1 px-6 py-4 flex flex-col gap-3.5 overflow-hidden">
+      <main
+        className="flex-1 px-6 py-4 flex flex-col gap-3.5"
+        style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+      >
         {/* TÍTULO PRINCIPAL */}
         <div className="shrink-0">
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight m-0">
@@ -79,9 +81,9 @@ function VetDashboardPage() {
           </p>
         </div>
 
-        {/* 3. FILA DE 4 TARJETAS KPI COMPACTAS */}
+        {/* FILA DE 4 TARJETAS KPI COMPACTAS */}
         <section className="grid grid-cols-4 gap-3.5 shrink-0">
-          {/* KPI 1: Alerta Sanitaria (Plan 013) */}
+          {/* KPI 1: Alerta Sanitaria */}
           <div
             onClick={() => navigate('/veterinario/alertas')}
             className="bg-white rounded-xl p-3.5 shadow-sm border border-red-100 flex items-center gap-3.5 cursor-pointer hover:border-red-300 transition"
@@ -103,7 +105,7 @@ function VetDashboardPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-slate-600 truncate m-0">
-                Alerta Sanitaria (Plan 013)
+                Alerta Sanitaria
               </p>
               <p className="text-2xl font-extrabold text-[#DC2626] leading-tight m-0">
                 {vetSanitaryAlerts.length}
@@ -114,7 +116,7 @@ function VetDashboardPage() {
             </div>
           </div>
 
-          {/* KPI 2: Solicitudes de Aislamiento (Plan 014) */}
+          {/* KPI 2: Solicitudes por Validar */}
           <div
             onClick={() => navigate('/veterinario/aislamiento')}
             className="bg-white rounded-xl p-3.5 shadow-sm border border-stone-200/70 flex items-center gap-3.5 cursor-pointer hover:border-amber-300 transition"
@@ -147,7 +149,7 @@ function VetDashboardPage() {
                 </span>
               </div>
               <p className="text-[10px] font-medium text-slate-500 truncate m-0">
-                Enviadas por trabajadores (Plan 014)
+                Enviadas por trabajadores
               </p>
             </div>
           </div>
@@ -219,11 +221,11 @@ function VetDashboardPage() {
           </div>
         </section>
 
-        {/* 4. DISTRIBUCIÓN CENTRAL (DOS COLUMNAS: 8 IZQUIERDA / 4 DERECHA) */}
+        {/* DISTRIBUCIÓN CENTRAL (DOS COLUMNAS: 8 IZQUIERDA / 4 DERECHA) */}
         <div className="flex-1 grid grid-cols-12 gap-3.5 min-h-0">
           {/* COLUMNA IZQUIERDA (8 de 12 columnas) */}
           <div className="col-span-8 flex flex-col gap-3.5 min-h-0">
-            {/* TABLA: Bandeja de Solicitudes de Aislamiento (Plan 014) */}
+            {/* TABLA: Bandeja de Solicitudes de Aislamiento */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-stone-200/70 flex flex-col shrink-0">
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
@@ -244,13 +246,8 @@ function VetDashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 m-0">
-                      Bandeja de Solicitudes de Aislamiento (Plan 014)
+                      Bandeja de Solicitudes de Aislamiento
                     </h3>
-                    <p className="text-[10px] text-slate-500 m-0">
-                      Solicitudes en{' '}
-                      <span className="font-semibold text-amber-700">PENDIENTE_VALIDACION</span>{' '}
-                      sobre galpones en estado Productivo (Specs 020 / 010)
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -273,9 +270,9 @@ function VetDashboardPage() {
                     <tr className="bg-stone-100/90 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
                       <th className="py-2 px-3 w-[22%]">Galpón / Lote</th>
                       <th className="py-2 px-2.5 w-[15%]">Fecha / Hora</th>
-                      <th className="py-2 px-3 w-[35%]">Motivo / Signos Observados</th>
+                      <th className="py-2 px-3 w-[33%]">Motivo / Signos Observados</th>
                       <th className="py-2 px-2 text-center w-[15%]">Estado Galpón</th>
-                      <th className="py-2 px-3 text-right w-[13%]">Acciones</th>
+                      <th className="py-2 px-3 text-right w-[15%]">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-200/70 text-[11px]">
@@ -321,7 +318,7 @@ function VetDashboardPage() {
                             <button
                               type="button"
                               onClick={() => openEvalModal(req)}
-                              className="bg-[#185C2B] hover:bg-[#134821] text-white text-[11px] font-semibold px-3 py-1 rounded-lg shadow-sm transition inline-flex items-center gap-1 border-0 cursor-pointer"
+                              className="bg-[#185C2B] hover:bg-[#134821] text-white text-[11px] font-semibold px-3 py-1 rounded-lg shadow-sm transition inline-flex items-center gap-1 border-0 cursor-pointer whitespace-nowrap"
                             >
                               <svg
                                 className="w-3 h-3"
@@ -347,7 +344,7 @@ function VetDashboardPage() {
               </div>
             </div>
 
-            {/* PANEL DE ALERTAS SANITARIAS (Plan 013 / Spec 018) */}
+            {/* PANEL DE ALERTAS SANITARIAS */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-red-200/80 flex-1 flex flex-col justify-between min-h-0">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -368,12 +365,8 @@ function VetDashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 m-0">
-                      Alertas Recientes de Mortalidad Anormal (Plan 013)
+                      Alertas Recientes de Mortalidad Anormal
                     </h3>
-                    <p className="text-[10px] text-slate-500 m-0">
-                      Generadas automáticamente al superar el umbral diario de bajas (Spec 017 /
-                      Spec 018)
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -433,7 +426,7 @@ function VetDashboardPage() {
 
           {/* COLUMNA DERECHA (4 de 12 columnas) */}
           <div className="col-span-4 flex flex-col gap-3.5 min-h-0">
-            {/* TARJETA: Galpones Diagnosticados (Plan 015 + Acciones Plan 012 y Plan 008) */}
+            {/* TARJETA: Galpones Diagnosticados */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-stone-200/70 flex flex-col shrink-0">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
@@ -451,7 +444,7 @@ function VetDashboardPage() {
                     />
                   </svg>
                   <h3 className="text-xs font-bold text-slate-900 m-0">
-                    Galpones Diagnosticados (Plan 015)
+                    Galpones Diagnosticados
                   </h3>
                 </div>
               </div>
@@ -545,7 +538,7 @@ function VetDashboardPage() {
               </div>
             </div>
 
-            {/* TARJETA: Estado General de Galpones (Barras Delgadas Compactas) */}
+            {/* TARJETA: Estado General de Galpones */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-stone-200/70 flex-1 flex flex-col justify-between min-h-0">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
@@ -617,9 +610,9 @@ function VetDashboardPage() {
         </div>
       </main>
 
-      {/* MODAL M-01 DIRECTO DESDE EL DASHBOARD */}
+      {/* MODAL DETALLE DE ALERTA SANITARIA */}
       {selectedAlert && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[680px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-red-50/70 border-b border-red-200/80 flex items-start justify-between">
               <div className="flex items-start gap-3">
@@ -794,9 +787,9 @@ function VetDashboardPage() {
         </div>
       )}
 
-      {/* MODAL M-04 DIRECTO DESDE EL DASHBOARD */}
+      {/* MODAL EVALUAR SOLICITUD DE AISLAMIENTO */}
       {evaluatingRequest && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[640px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -810,7 +803,6 @@ function VetDashboardPage() {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 m-0">
                   Revise los signos reportados por el trabajador y registre su decisión clínica
-                  (Spec 010)
                 </p>
               </div>
               <button
@@ -897,7 +889,7 @@ function VetDashboardPage() {
                     />
                     <div>
                       <span className="block text-xs font-extrabold text-emerald-950">
-                        Aprobar Aislamiento (APROBADA)
+                        Aprobar Aislamiento
                       </span>
                       <span className="text-[11px] text-emerald-800 leading-tight block mt-0.5">
                         Cambia el galpón de <strong>Productivo</strong> a{' '}
@@ -923,7 +915,7 @@ function VetDashboardPage() {
                     />
                     <div>
                       <span className="block text-xs font-extrabold text-slate-800">
-                        Rechazar Solicitud (RECHAZADA)
+                        Rechazar Solicitud
                       </span>
                       <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
                         Descarta el riesgo de aislamiento y conserva el galpón en estado{' '}

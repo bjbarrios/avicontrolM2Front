@@ -16,7 +16,6 @@ function VetMedicinesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // 5 Atributos obligatorios de Spec 008 FR-002
   const [enfermedadId, setEnfermedadId] = useState('');
   const [medicamentoId, setMedicamentoId] = useState('');
   const [dosis, setDosis] = useState('');
@@ -24,7 +23,6 @@ function VetMedicinesPage() {
   const [descripcion, setDescripcion] = useState('');
   const [formError, setFormError] = useState('');
 
-  // FR-003: Solo enfermedades tratables (requiereSacrificioSanitario === false)
   const treatableDiseases = vetCatalogDiseases
     .filter((d) => !d.requiereSacrificioSanitario)
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
@@ -72,14 +70,14 @@ function VetMedicinesPage() {
     }
 
     if (!Number.isInteger(parsedDays) || parsedDays <= 0) {
-      setFormError('La duración debe ser un número entero de días mayor que cero (Spec 008).');
+      setFormError('La duración debe ser un número entero de días mayor que cero.');
       return;
     }
 
     const selectedDisease = vetCatalogDiseases.find((d) => d.id === enfermedadId);
     if (!selectedDisease || selectedDisease.requiereSacrificioSanitario) {
       setFormError(
-        '409 Conflict: La enfermedad seleccionada requiere sacrificio sanitario y no admite medicación.'
+        'La enfermedad seleccionada requiere sacrificio sanitario y no admite medicación.'
       );
       return;
     }
@@ -103,7 +101,7 @@ function VetMedicinesPage() {
         onClick={() => navigate('/veterinario/enfermedades')}
         className="px-4 py-1.5 rounded-lg text-slate-600 hover:bg-white/70 text-xs font-semibold transition flex items-center gap-2 bg-transparent border-0 cursor-pointer"
       >
-        <span>1. Catálogo de Enfermedades (P-03)</span>
+        <span>1. Catálogo de Enfermedades</span>
         <span className="bg-stone-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
           {vetCatalogDiseases.length}
         </span>
@@ -113,7 +111,7 @@ function VetMedicinesPage() {
         onClick={() => navigate('/veterinario/medicinas')}
         className="px-4 py-1.5 rounded-lg bg-[#185C2B] text-white text-xs font-bold shadow-sm flex items-center gap-2 border-0 cursor-pointer"
       >
-        <span>2. Catálogo de Medicaciones (P-04)</span>
+        <span>2. Catálogo de Medicaciones</span>
         <span className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
           {vetCatalogMedications.length}
         </span>
@@ -123,8 +121,11 @@ function VetMedicinesPage() {
 
   return (
     <VetShell activeNav="gestion-sanitaria" headerLeft={headerSubNav}>
-      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
-        {/* ENCABEZADO + BOTÓN PRINCIPAL QUE ABRE EL MODAL */}
+      <main
+        className="flex-1 px-8 py-5 flex flex-col gap-4"
+        style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+      >
+        {/* ENCABEZADO + BOTÓN PRINCIPAL */}
         <div className="flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
@@ -132,7 +133,7 @@ function VetMedicinesPage() {
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
               Protocolos terapéuticos estandarizados vinculados a enfermedades tratables y
-              medicamentos del inventario (Plan 006 / Spec 008)
+              medicamentos del inventario
             </p>
           </div>
 
@@ -154,10 +155,12 @@ function VetMedicinesPage() {
           </button>
         </div>
 
-        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO: FILTRO OFICIAL (FR-006) Y TABLA */}
-        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-          <div className="flex flex-col min-h-0">
-            {/* Barra de Filtro por Enfermedad Tratable (GET /api/medicaciones?enfermedadId=uuid) */}
+        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO */}
+        <section
+          className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+          style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
               <div className="flex items-center gap-3">
                 <label className="text-xs font-bold text-slate-700 whitespace-nowrap">
@@ -183,15 +186,10 @@ function VetMedicinesPage() {
                   })}
                 </select>
               </div>
-
-              <span className="bg-emerald-50 text-[#185C2B] border border-emerald-200/80 text-[11px] font-semibold px-3 py-1.5 rounded-xl">
-                Solo admite enfermedades tratables (sin sacrificio sanitario) · No descuenta
-                inventario físico
-              </span>
             </div>
 
             {/* Tabla del Catálogo de Medicaciones */}
-            <div className="overflow-auto rounded-xl border border-stone-200/90">
+            <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
@@ -199,8 +197,8 @@ function VetMedicinesPage() {
                     <th className="py-3 px-4 w-[20%]">Medicamento (Inventario)</th>
                     <th className="py-3 px-3 w-[20%]">Dosis</th>
                     <th className="py-3 px-3 text-center w-[11%]">Días Totales</th>
-                    <th className="py-3 px-4 w-[21%]">Descripción de Administración</th>
-                    <th className="py-3 px-4 text-right w-[8%]">Acción</th>
+                    <th className="py-3 px-4 w-[19%]">Descripción de Administración</th>
+                    <th className="py-3 px-4 text-right w-[10%]">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200/70 text-xs">
@@ -235,7 +233,7 @@ function VetMedicinesPage() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <p className="m-0">
               Editar una medicación aplica únicamente a diagnósticos futuros; los diagnósticos
               existentes conservan su duración y fecha de reintegro originales.
@@ -247,9 +245,9 @@ function VetMedicinesPage() {
         </section>
       </main>
 
-      {/* 3. MODAL EMERGENTE: REGISTRAR / EDITAR MEDICACIÓN (Spec 008) */}
+      {/* MODAL EMERGENTE: REGISTRAR / EDITAR MEDICACIÓN */}
       {modalOpen && (
-        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>

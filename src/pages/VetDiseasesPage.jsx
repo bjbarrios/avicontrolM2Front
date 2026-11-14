@@ -16,7 +16,6 @@ function VetDiseasesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Campos del formulario (Spec 009 FR-002 y FR-004)
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState('');
   const [nivelRiesgo, setNivelRiesgo] = useState('');
@@ -48,7 +47,7 @@ function VetDiseasesPage() {
     setNombre('');
     setTipo('');
     setNivelRiesgo('');
-    setRequiereSacrificio(null); // FR-004: sin valor predeterminado
+    setRequiereSacrificio(null);
     setDescripcionClinica('');
     setFormError('');
     setModalOpen(true);
@@ -72,7 +71,7 @@ function VetDiseasesPage() {
 
     if (!cleanNombre || !tipo || !nivelRiesgo || !cleanDesc || requiereSacrificio === null) {
       setFormError(
-        'Todos los campos son obligatorios, incluyendo la selección explícita de si requiere sacrificio sanitario (Spec 009 FR-003 y FR-004).'
+        'Todos los campos son obligatorios, incluyendo indicar si requiere sacrificio sanitario.'
       );
       return;
     }
@@ -82,9 +81,7 @@ function VetDiseasesPage() {
         d.id !== editingId && d.nombre.trim().toLowerCase() === cleanNombre.toLowerCase()
     );
     if (duplicate) {
-      setFormError(
-        `409 Conflict: Ya existe una enfermedad registrada con el nombre "${cleanNombre}".`
-      );
+      setFormError(`Ya existe una enfermedad registrada con el nombre "${cleanNombre}".`);
       return;
     }
 
@@ -164,7 +161,7 @@ function VetDiseasesPage() {
         onClick={() => navigate('/veterinario/enfermedades')}
         className="px-4 py-1.5 rounded-lg bg-[#185C2B] text-white text-xs font-bold shadow-sm flex items-center gap-2 border-0 cursor-pointer"
       >
-        <span>1. Catálogo de Enfermedades (P-03)</span>
+        <span>1. Catálogo de Enfermedades</span>
         <span className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
           {vetCatalogDiseases.length}
         </span>
@@ -174,7 +171,7 @@ function VetDiseasesPage() {
         onClick={() => navigate('/veterinario/medicinas')}
         className="px-4 py-1.5 rounded-lg text-slate-600 hover:bg-white/70 text-xs font-semibold transition flex items-center gap-2 bg-transparent border-0 cursor-pointer"
       >
-        <span>2. Catálogo de Medicaciones (P-04)</span>
+        <span>2. Catálogo de Medicaciones</span>
         <span className="bg-stone-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
           {vetCatalogMedications.length}
         </span>
@@ -184,8 +181,11 @@ function VetDiseasesPage() {
 
   return (
     <VetShell activeNav="gestion-sanitaria" headerLeft={headerSubNav}>
-      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
-        {/* ENCABEZADO + BOTÓN PRINCIPAL QUE ABRE EL MODAL */}
+      <main
+        className="flex-1 px-8 py-5 flex flex-col gap-4"
+        style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+      >
+        {/* ENCABEZADO + BOTÓN PRINCIPAL */}
         <div className="flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
@@ -193,7 +193,6 @@ function VetDiseasesPage() {
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
               Registro y consulta de patologías avícolas, clasificación clínica y manejo sanitario
-              (Plan 005 / Spec 009)
             </p>
           </div>
 
@@ -215,10 +214,12 @@ function VetDiseasesPage() {
           </button>
         </div>
 
-        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO: BUSCADOR, FILTROS Y TABLA */}
-        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-          <div className="flex flex-col min-h-0">
-            {/* Barra de Búsqueda y Filtro por Sacrificio Sanitario (FR-007) */}
+        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO */}
+        <section
+          className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+          style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
               <div className="relative w-[380px]">
                 <svg
@@ -281,16 +282,16 @@ function VetDiseasesPage() {
             </div>
 
             {/* Tabla del Catálogo */}
-            <div className="overflow-auto rounded-xl border border-stone-200/90">
+            <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
                     <th className="py-3 px-4 w-[22%]">Nombre de la Enfermedad</th>
                     <th className="py-3 px-3 w-[13%]">Tipo</th>
                     <th className="py-3 px-3 w-[13%]">Nivel de Riesgo</th>
-                    <th className="py-3 px-4 w-[32%]">Descripción Clínica</th>
+                    <th className="py-3 px-4 w-[30%]">Descripción Clínica</th>
                     <th className="py-3 px-3 text-center w-[12%]">¿Requiere Sacrificio?</th>
-                    <th className="py-3 px-4 text-right w-[8%]">Acción</th>
+                    <th className="py-3 px-4 text-right w-[10%]">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200/70 text-xs">
@@ -336,8 +337,7 @@ function VetDiseasesPage() {
             </div>
           </div>
 
-          {/* Pie de Tabla informativo */}
-          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <p className="m-0">
               Las ediciones sobre una enfermedad se aplicarán únicamente a diagnósticos futuros sin
               alterar el historial clínico previo.
@@ -349,9 +349,9 @@ function VetDiseasesPage() {
         </section>
       </main>
 
-      {/* 3. MODAL EMERGENTE: REGISTRAR / EDITAR ENFERMEDAD (Spec 009) */}
+      {/* MODAL EMERGENTE: REGISTRAR / EDITAR ENFERMEDAD */}
       {modalOpen && (
-        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -433,7 +433,6 @@ function VetDiseasesPage() {
                 </div>
               </div>
 
-              {/* Selección explícita obligatoria: ¿Requiere sacrificio sanitario? (FR-004) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   ¿Requiere sacrificio sanitario? <span className="text-red-600">*</span>

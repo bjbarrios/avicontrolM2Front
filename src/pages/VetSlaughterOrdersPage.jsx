@@ -14,7 +14,6 @@ function VetSlaughterOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [galponFilter, setGalponFilter] = useState('');
 
-  // Modal M-07A: Emitir Orden de Sacrificio Sanitario Total (Spec 012 US1)
   const [emitModalOpen, setEmitModalOpen] = useState(false);
   const [selectedDiagnosticoId, setSelectedDiagnosticoId] = useState('');
   const [motivoClinico, setMotivoClinico] = useState(
@@ -22,7 +21,6 @@ function VetSlaughterOrdersPage() {
   );
   const [emitError, setEmitError] = useState('');
 
-  // Modal M-07B: Confirmar Ejecución Física de Sacrificio Sanitario (Spec 012 US2)
   const [confirmingOrder, setConfirmingOrder] = useState(null);
   const [observacionesEjecucion, setObservacionesEjecucion] = useState(
     'Sacrificio sanitario total culminado bajo protocolo de bioseguridad nivel 3. Galpón sellado para inicio de desinfección.'
@@ -42,7 +40,6 @@ function VetSlaughterOrdersPage() {
     return true;
   });
 
-  // Diagnósticos mortales activos en galpones aislados (FR-003 y FR-004)
   const mortalActiveDiagnoses = vetActiveDiagnoses.filter(
     (d) => d.estado === 'ACTIVO' && d.requiereSacrificioHistorico
   );
@@ -75,7 +72,7 @@ function VetSlaughterOrdersPage() {
     e.preventDefault();
     if (!selectedDiagObj) {
       setEmitError(
-        'Debe contar con un diagnóstico confirmado cuya enfermedad requiera sacrificio sanitario (Spec 012 FR-003).'
+        'Debe contar con un diagnóstico confirmado cuya enfermedad requiera sacrificio sanitario.'
       );
       return;
     }
@@ -89,7 +86,7 @@ function VetSlaughterOrdersPage() {
     );
     if (alreadyPending) {
       setEmitError(
-        `409 Conflict (ORDEN_PENDIENTE_DUPLICADA): El ${selectedDiagObj.galponNombreHistorico} ya cuenta con una orden de sacrificio sanitario pendiente de ejecución.`
+        `El ${selectedDiagObj.galponNombreHistorico} ya cuenta con una orden de sacrificio sanitario pendiente de ejecución.`
       );
       return;
     }
@@ -128,7 +125,10 @@ function VetSlaughterOrdersPage() {
 
   return (
     <VetShell activeNav="ordenes">
-      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+      <main
+        className="flex-1 px-8 py-5 flex flex-col gap-4"
+        style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+      >
         {/* ENCABEZADO ALINEADO EN UNA SOLA LÍNEA */}
         <div className="flex items-center justify-between shrink-0">
           <div>
@@ -137,7 +137,7 @@ function VetSlaughterOrdersPage() {
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
               Emisión y confirmación de ejecución física de erradicación biológica total ante
-              diagnósticos de enfermedades mortales (Plan 008 / Spec 012)
+              diagnósticos de enfermedades mortales
             </p>
           </div>
 
@@ -159,9 +159,12 @@ function VetSlaughterOrdersPage() {
           </button>
         </div>
 
-        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO: FILTROS OFICIALES (estado, galponId) Y TABLA */}
-        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-          <div className="flex flex-col min-h-0">
+        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO */}
+        <section
+          className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+          style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
               <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
                 <button
@@ -219,17 +222,17 @@ function VetSlaughterOrdersPage() {
             </div>
 
             {/* Tabla de Órdenes de Sacrificio Sanitario */}
-            <div className="overflow-auto rounded-xl border border-stone-200/90">
+            <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
                     <th className="py-3 px-4 w-[14%]">Galpón / Lote</th>
                     <th className="py-3 px-3 w-[16%]">Enfermedad Mortal</th>
                     <th className="py-3 px-3 text-center w-[15%]">Población (100% Lote)</th>
-                    <th className="py-3 px-3 w-[23%]">Motivo Clínico / Observaciones</th>
+                    <th className="py-3 px-3 w-[21%]">Motivo Clínico / Observaciones</th>
                     <th className="py-3 px-2.5 text-center w-[12%]">Estado Galpón</th>
                     <th className="py-3 px-2.5 text-center w-[10%]">Estado Orden</th>
-                    <th className="py-3 px-4 text-right w-[10%]">Acción</th>
+                    <th className="py-3 px-4 text-right w-[12%]">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200/70 text-xs">
@@ -350,7 +353,7 @@ function VetSlaughterOrdersPage() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <p className="m-0">
               La emisión en estado <strong>Pendiente de Ejecución</strong> conserva intactos el lote
               y el galpón; solo al <strong>Confirmar Ejecución</strong> la población pasa a 0 y el
@@ -363,11 +366,9 @@ function VetSlaughterOrdersPage() {
         </section>
       </main>
 
-      {/* =====================================================================
-         MODAL M-07A: EMITIR ORDEN DE SACRIFICIO SANITARIO TOTAL (Plan 008 / US1)
-         ===================================================================== */}
+      {/* MODAL EMITIR ORDEN DE SACRIFICIO SANITARIO TOTAL */}
       {emitModalOpen && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[620px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -381,7 +382,7 @@ function VetSlaughterOrdersPage() {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 m-0">
                   Ordene la erradicación sanitaria de toda la población del lote ante un diagnóstico
-                  mortal confirmado (Spec 012 · US1)
+                  mortal confirmado
                 </p>
               </div>
               <button
@@ -396,7 +397,7 @@ function VetSlaughterOrdersPage() {
             <form onSubmit={handleEmitOrder} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Diagnóstico mortal confirmado en galpón aislado (Plan 015){' '}
+                  Diagnóstico mortal confirmado en galpón aislado{' '}
                   <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -408,9 +409,7 @@ function VetSlaughterOrdersPage() {
                   className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#185C2B]"
                 >
                   {mortalActiveDiagnoses.length === 0 ? (
-                    <option value="">
-                      No hay diagnósticos mortales activos (registre uno en P-06)
-                    </option>
+                    <option value="">No hay diagnósticos mortales activos</option>
                   ) : (
                     mortalActiveDiagnoses.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -425,7 +424,7 @@ function VetSlaughterOrdersPage() {
               <div className="p-4 rounded-xl bg-red-50/50 border border-red-200/90 space-y-2.5">
                 <div className="flex items-center justify-between border-b border-red-200/70 pb-2">
                   <span className="text-[11px] font-extrabold text-red-950 uppercase tracking-wider">
-                    Alcance Total Obligatorio del Lote (FR-006)
+                    Alcance Total Obligatorio del Lote
                   </span>
                   <span className="text-[10px] font-bold text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full">
                     Estado Actual: AISLAMIENTO
@@ -457,14 +456,14 @@ function VetSlaughterOrdersPage() {
                     <span className="text-[10px] text-slate-400 block">
                       Estado inicial de orden
                     </span>
-                    <span className="font-extrabold text-amber-800">PENDIENTE_EJECUCION</span>
+                    <span className="font-extrabold text-amber-800">Pendiente de Ejecución</span>
                   </div>
                 </div>
 
                 <p className="text-[11px] text-slate-600 leading-snug m-0">
                   La orden abarca el <strong>100 % de la población alojada</strong> sin cantidades
                   parciales ni pesajes comerciales. Emitir esta orden mantiene el galpón en{' '}
-                  <strong>Aislamiento</strong> hasta que se confirme su ejecución física (FR-007).
+                  <strong>Aislamiento</strong> hasta que se confirme su ejecución física.
                 </p>
               </div>
 
@@ -510,11 +509,9 @@ function VetSlaughterOrdersPage() {
         </div>
       )}
 
-      {/* =====================================================================
-         MODAL M-07B: CONFIRMAR EJECUCIÓN FÍSICA DE SACRIFICIO SANITARIO (US2)
-         ===================================================================== */}
+      {/* MODAL CONFIRMAR EJECUCIÓN FÍSICA DE SACRIFICIO SANITARIO */}
       {confirmingOrder && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[640px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-red-50/80 border-b border-red-200 flex items-center justify-between">
               <div>
@@ -527,8 +524,7 @@ function VetSlaughterOrdersPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-0.5 m-0">
-                  Certifique que la orden pendiente fue ejecutada físicamente en campo (Spec 012 ·
-                  US2)
+                  Certifique que la orden pendiente fue ejecutada físicamente en campo
                 </p>
               </div>
               <button
@@ -566,33 +562,28 @@ function VetSlaughterOrdersPage() {
 
               <div className="p-4 rounded-xl bg-red-50/60 border border-red-200 space-y-2">
                 <span className="text-[11px] font-extrabold text-red-950 uppercase tracking-wider block">
-                  Al confirmar esta ejecución, el sistema aplicará en una sola transacción atómica:
+                  Al confirmar esta ejecución, el sistema aplicará de forma inmediata:
                 </span>
                 <ul className="text-xs text-slate-800 space-y-1.5 list-disc list-inside m-0 p-0">
                   <li>
-                    <strong>Extinción de inventario vivo (Módulo 1):</strong> Fija la{' '}
-                    <code className="bg-white px-1 rounded">poblacionActual</code> del{' '}
+                    <strong>Extinción de inventario vivo:</strong> Fija la población viva del{' '}
                     <strong>{confirmingOrder.loteNombre}</strong> en exactamente{' '}
                     <strong>0 aves</strong> (registrando{' '}
                     {Number(remanenteVivoHoy).toLocaleString('es-CO')} aves sacrificadas).
                   </li>
                   <li>
-                    <strong>Transición de galpón (Módulo 1):</strong> Cambia el estado del{' '}
+                    <strong>Transición de galpón:</strong> Cambia el estado del{' '}
                     <strong>{confirmingOrder.galponNombre}</strong> de{' '}
-                    <code className="bg-white px-1 rounded">AISLAMIENTO</code> a{' '}
-                    <code className="bg-white px-1 rounded font-bold text-purple-900">
-                      VACIADO_SANITARIO
-                    </code>
-                    .
+                    <strong>Aislamiento</strong> a{' '}
+                    <strong className="text-purple-900">Vaciado Sanitario</strong>.
                   </li>
                   <li>
-                    <strong>Cierre de diagnóstico (Plan 015):</strong> Marca el diagnóstico activo
-                    como <code className="bg-white px-1 rounded">CERRADO_POR_SACRIFICIO</code>.
+                    <strong>Cierre de diagnóstico:</strong> Marca el diagnóstico clínico activo como{' '}
+                    <strong>Cerrado por Sacrificio</strong>.
                   </li>
                   <li>
-                    <strong>Baja contable (Módulo 3):</strong> Marca la orden como{' '}
-                    <code className="bg-white px-1 rounded">EJECUTADA</code> y publica el evento de
-                    merma sanitaria sin venta comercial.
+                    <strong>Registro de ejecución:</strong> Marca la orden como{' '}
+                    <strong>Ejecutada</strong> de forma permanente.
                   </li>
                 </ul>
               </div>

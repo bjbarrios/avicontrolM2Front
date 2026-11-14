@@ -10,10 +10,10 @@ function VetAlertsPage() {
   } = useContext(FarmContext);
 
   const [priorityFilter, setPriorityFilter] = useState('ALL');
-  const [selectedAlert, setSelectedAlert] = useState(vetSanitaryAlerts[0] || null);
+  // El modal inicia cerrado y solo se muestra al hacer clic en "Ver Alerta"
+  const [selectedAlert, setSelectedAlert] = useState(null);
   const [simModalOpen, setSimModalOpen] = useState(false);
 
-  // Estado del simulador de evento de mortalidad anormal (Plan 007 -> Plan 013)
   const [simGalponId, setSimGalponId] = useState('galpon-1');
   const [simMuertes, setSimMuertes] = useState('24');
   const [simCausa, setSimCausa] = useState('Síndrome respiratorio agudo / jadeo severo');
@@ -94,7 +94,10 @@ function VetAlertsPage() {
 
   return (
     <VetShell activeNav="alertas">
-      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+      <main
+        className="flex-1 px-8 py-5 flex flex-col gap-4"
+        style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+      >
         <div className="flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
@@ -102,7 +105,7 @@ function VetAlertsPage() {
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
               Notificaciones automáticas e inmutables generadas por eventos de mortalidad anormal en
-              galpones (Plan 013 / Spec 018)
+              galpones
             </p>
           </div>
 
@@ -115,7 +118,7 @@ function VetAlertsPage() {
               }}
               className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold px-3.5 py-2 rounded-xl shadow-sm transition border-0 cursor-pointer"
             >
-              + Simular Evento Mortalidad Anormal (Spec 017 → 018)
+              + Simular Evento Mortalidad Anormal
             </button>
             <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-3.5 py-1.5 rounded-full">
               {countAll} Alertas en estado: Pendiente de atención veterinaria
@@ -123,10 +126,12 @@ function VetAlertsPage() {
           </div>
         </div>
 
-        {/* TARJETA DE LISTADO PAGINADO (GET /api/alertas-sanitarias) */}
-        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-          <div className="flex flex-col min-h-0">
-            {/* Filtro por Prioridad (ALTA | CRITICA | EMERGENCIA_SANITARIA) */}
+        {/* TARJETA DE LISTADO EXTENDIDA HASTA ABAJO */}
+        <section
+          className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+          style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
               <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
                 <button
@@ -181,7 +186,7 @@ function VetAlertsPage() {
             </div>
 
             {/* Tabla de Alertas */}
-            <div className="overflow-auto rounded-xl border border-stone-200/90">
+            <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
@@ -232,7 +237,7 @@ function VetAlertsPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedAlert(alerta)}
-                          className="bg-[#DC2626] hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition border-0 cursor-pointer"
+                          className="bg-[#DC2626] hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition border-0 cursor-pointer whitespace-nowrap"
                         >
                           Ver Alerta
                         </button>
@@ -244,7 +249,7 @@ function VetAlertsPage() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <p className="m-0">
               Las alertas sanitarias forman parte de la bitácora inmutable de bioseguridad y no
               pueden ser eliminadas.
@@ -254,11 +259,10 @@ function VetAlertsPage() {
         </section>
       </main>
 
-      {/* 3. MODAL M-01: DETALLE CONSOLIDADO DE ALERTA SANITARIA (Plan 013 / Spec 018 - US2) */}
+      {/* MODAL DETALLE CONSOLIDADO DE ALERTA SANITARIA */}
       {selectedAlert && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[680px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
-            {/* Cabecera del Modal con Estado y Prioridad */}
             <div className="px-6 py-4 bg-red-50/70 border-b border-red-200/80 flex items-start justify-between">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#DC2626] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -304,11 +308,8 @@ function VetAlertsPage() {
               </button>
             </div>
 
-            {/* Cuerpo Consolidado en Solo Lectura (3 Bloques Exactos del JSON de Plan 013 US2) */}
             <div className="p-6 space-y-4">
-              {/* Fila Superior: Bloque 1 (Galpón) + Bloque 2 (Lote Activo) */}
               <div className="grid grid-cols-2 gap-4">
-                {/* Bloque 1: Datos del Galpón (FR-004: Nombre, Aforo máximo, Estado) */}
                 <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/90">
                   <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-stone-200/70">
                     <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
@@ -335,7 +336,6 @@ function VetAlertsPage() {
                   </div>
                 </div>
 
-                {/* Bloque 2: Datos del Lote Activo (FR-005: Nombre, Población actual, Edad en días) */}
                 <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/90">
                   <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-stone-200/70">
                     <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
@@ -365,7 +365,6 @@ function VetAlertsPage() {
                 </div>
               </div>
 
-              {/* Bloque 3: Reporte de Mortalidad Anormal que originó la alerta (FR-006 y FR-011) */}
               <div className="p-4 rounded-xl bg-red-50/40 border border-red-200/90 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-red-200/60">
                   <span className="text-[11px] font-extrabold text-red-900 uppercase tracking-wider">
@@ -379,7 +378,6 @@ function VetAlertsPage() {
                   </span>
                 </div>
 
-                {/* Métricas Cuantitativas del Evento */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white p-3 rounded-xl border border-red-100">
                     <span className="text-[11px] text-slate-500 block">Muertes anormales</span>
@@ -403,7 +401,6 @@ function VetAlertsPage() {
                   </div>
                 </div>
 
-                {/* Causa Probable y Observaciones del Trabajador */}
                 <div className="grid grid-cols-1 gap-2.5 text-xs pt-1">
                   <div className="bg-white p-3 rounded-xl border border-stone-200/80">
                     <span className="text-[11px] font-bold text-slate-500 block mb-0.5">
@@ -425,7 +422,6 @@ function VetAlertsPage() {
                 </div>
               </div>
 
-              {/* Nota de Solo Lectura */}
               <div className="px-3.5 py-2.5 rounded-xl bg-stone-100 text-[11px] text-slate-600 flex items-center gap-2">
                 <span className="font-bold text-slate-800">Nota operativa:</span>
                 <span>
@@ -436,7 +432,6 @@ function VetAlertsPage() {
               </div>
             </div>
 
-            {/* Pie del Modal */}
             <div className="px-6 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-end gap-2.5">
               <button
                 type="button"
@@ -450,9 +445,9 @@ function VetAlertsPage() {
         </div>
       )}
 
-      {/* MODAL AUXILIAR DE SIMULACIÓN DE EVENTO DE MORTALIDAD ANORMAL (Spec 017 -> Spec 018) */}
+      {/* MODAL SIMULAR MORTALIDAD ANORMAL Y ALERTA AUTOMÁTICA */}
       {simModalOpen && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -461,7 +456,7 @@ function VetAlertsPage() {
                 </h3>
                 <p className="text-xs text-slate-500 m-0 mt-0.5">
                   Descuenta aves vivas del lote y dispara automáticamente la alerta sanitaria
-                  inmutable (Specs 017, 018 y 019)
+                  inmutable
                 </p>
               </div>
               <button

@@ -26,7 +26,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     vetActiveDiagnoses = [],
     vetFefoReceptions = [],
     vetMedConsumptions = [],
-    createIsolationRequest,
     validateIsolationRequest,
     registerBarnDiagnosis,
     processDiagnosisReintegration,
@@ -45,9 +44,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     }
   }, [location.pathname]);
 
-  // ===========================================================================
-  // ESTADOS P-05: SOLICITUDES Y VALIDACIÓN DE AISLAMIENTO (Plan 014 / Spec 010)
-  // ===========================================================================
+  // ESTADOS: SOLICITUDES Y VALIDACIÓN DE AISLAMIENTO
   const [reqStatusFilter, setReqStatusFilter] = useState('PENDIENTE_VALIDACION');
   const [reqGalponFilter, setReqGalponFilter] = useState('');
   const [evaluatingReq, setEvaluatingReq] = useState(null);
@@ -57,20 +54,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
   );
   const [evalError, setEvalError] = useState('');
 
-  // Modal auxiliar para simular envío de solicitud por trabajador (Spec 020)
-  const [simReqModalOpen, setSimReqModalOpen] = useState(false);
-  const [simReqGalponId, setSimReqGalponId] = useState('galpon-9');
-  const [simReqMotivo, setSimReqMotivo] = useState(
-    'Aparición de aves decaídas y estertores húmedos en sector sur'
-  );
-  const [simReqSignos, setSimReqSignos] = useState(
-    'Plumas erizadas, letargo, disminución en consumo de agua y secreción nasal.'
-  );
-  const [simReqError, setSimReqError] = useState('');
-
-  // ===========================================================================
-  // ESTADOS P-06: GALPONES AISLADOS, DIAGNÓSTICO (M-05) Y CONSUMO FEFO (M-06)
-  // ===========================================================================
+  // ESTADOS: GALPONES AISLADOS, DIAGNÓSTICO Y CONSUMO FEFO
   const [isolatedFilter, setIsolatedFilter] = useState('ALL');
   const [diagModalOpen, setDiagModalOpen] = useState(false);
   const [diagGalponId, setDiagGalponId] = useState('galpon-5');
@@ -85,7 +69,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
   const [consumoError, setConsumoError] = useState('');
   const [consumoSuccess, setConsumoSuccess] = useState('');
 
-  // Contadores de Solicitudes (P-05)
   const countReqPending = vetIsolationRequests.filter(
     (r) => r.estado === 'PENDIENTE_VALIDACION'
   ).length;
@@ -102,11 +85,9 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     return true;
   });
 
-  // Construcción de filas de Galpones en Aislamiento (P-06)
   const isolatedBarns = vetBarns.filter((b) => b.estado === 'AISLAMIENTO');
   const activeDiagnoses = vetActiveDiagnoses.filter((d) => d.estado === 'ACTIVO');
 
-  // Combinar galpones en aislamiento sin diagnóstico + diagnósticos activos
   const isolatedRows = [];
   isolatedBarns.forEach((barn) => {
     const diagsForBarn = activeDiagnoses.filter((d) => d.galponId === barn.id);
@@ -139,7 +120,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     return r.type === isolatedFilter;
   });
 
-  // Handlers P-05
   const openEvaluateModal = (req) => {
     setEvaluatingReq(req);
     setEvalResultado('APROBADA');
@@ -153,14 +133,12 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     e.preventDefault();
     if (!evaluatingReq) return;
     if (!evalObservaciones.trim()) {
-      setEvalError('Las observaciones clínicas del veterinario son obligatorias (Spec 010).');
+      setEvalError('Las observaciones clínicas del veterinario son obligatorias.');
       return;
     }
     const barn = vetBarns.find((b) => b.id === evaluatingReq.galponId);
     if (evalResultado === 'APROBADA' && barn && barn.estado !== 'PRODUCTIVO' && barn.estado !== 'AISLAMIENTO') {
-      setEvalError(
-        `409 Conflict: El galpón ${barn.nombre} ya no se encuentra en estado PRODUCTIVO.`
-      );
+      setEvalError(`El galpón ${barn.nombre} ya no se encuentra en estado Productivo.`);
       return;
     }
     validateIsolationRequest({
@@ -171,41 +149,13 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     setEvaluatingReq(null);
   };
 
-  const handleCreateSimRequest = (e) => {
-    e.preventDefault();
-    const barn = vetBarns.find((b) => b.id === simReqGalponId);
-    if (!barn || barn.estado !== 'PRODUCTIVO') {
-      setSimReqError('409 Conflict: El galpón debe encontrarse en estado PRODUCTIVO (Spec 020).');
-      return;
-    }
-    const hasPending = vetIsolationRequests.some(
-      (r) => r.galponId === simReqGalponId && r.estado === 'PENDIENTE_VALIDACION'
-    );
-    if (hasPending) {
-      setSimReqError(
-        '409 Conflict (SOLICITUD_PENDIENTE_DUPLICADA): El galpón ya tiene una solicitud de validación de aislamiento en evaluación.'
-      );
-      return;
-    }
-    if (!simReqMotivo.trim() || !simReqSignos.trim()) {
-      setSimReqError('El motivo y los signos clínicos observados son obligatorios.');
-      return;
-    }
-    createIsolationRequest({
-      galponId: simReqGalponId,
-      motivo: simReqMotivo.trim(),
-      signosObservados: simReqSignos.trim()
-    });
-    setSimReqModalOpen(false);
-    setSimReqError('');
-  };
-
-  // Handlers P-06: Modal M-05 (Diagnóstico)
   const openDiagnosisModal = (preselectedGalponId) => {
     const targetId =
       preselectedGalponId || isolatedBarns[0]?.id || 'galpon-5';
     setDiagGalponId(targetId);
-    const defaultDisease = vetCatalogDiseases.find((d) => !d.requiereSacrificioSanitario) || vetCatalogDiseases[0];
+    const defaultDisease =
+      vetCatalogDiseases.find((d) => !d.requiereSacrificioSanitario) ||
+      vetCatalogDiseases[0];
     setDiagEnfermedadId(defaultDisease?.id || '');
     const compatMeds = vetCatalogMedications.filter(
       (m) => m.enfermedadId === defaultDisease?.id
@@ -231,17 +181,17 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     e.preventDefault();
     if (!selectedDiagBarn || selectedDiagBarn.estado !== 'AISLAMIENTO') {
       setDiagError(
-        '409 Conflict (GALPON_NO_AISLADO): El galpón debe encontrarse en estado AISLAMIENTO para registrar el diagnóstico.'
+        'El galpón debe encontrarse en estado Aislamiento para registrar el diagnóstico.'
       );
       return;
     }
     if (!selectedDiagDisease) {
-      setDiagError('Debe seleccionar una enfermedad registrada del catálogo (Spec 011).');
+      setDiagError('Debe seleccionar una enfermedad registrada del catálogo.');
       return;
     }
     if (!selectedDiagDisease.requiereSacrificioSanitario && !selectedDiagMedication) {
       setDiagError(
-        'Debe seleccionar una medicación compatible para enfermedades tratables (Spec 011 FR-005).'
+        'Debe seleccionar una medicación compatible para enfermedades tratables.'
       );
       return;
     }
@@ -257,7 +207,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     setDiagModalOpen(false);
   };
 
-  // Handlers P-06: Modal M-06 (Consumo Real FEFO)
   const openConsumoModal = (diag) => {
     setConsumoModalDiag(diag);
     setConsumoCantidad('200');
@@ -284,13 +233,13 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
         normalizedQty = Number((rawQty / 1000).toFixed(4));
       } else if (consumoUnidad !== 'GRAMO') {
         setConsumoError(
-          `409 Conflict (UNIDAD_INCOMPATIBLE): El medicamento se controla en unidad base ${baseUnit}; la unidad ${consumoUnidad} pertenece a una dimensión incompatible.`
+          `El medicamento se controla en unidad base ${baseUnit}; la unidad ${consumoUnidad} no es compatible.`
         );
         return;
       }
     } else if (baseUnit !== consumoUnidad) {
       setConsumoError(
-        `409 Conflict (UNIDAD_INCOMPATIBLE): El medicamento se controla en unidad base ${baseUnit}; la unidad ${consumoUnidad} es incompatible.`
+        `El medicamento se controla en unidad base ${baseUnit}; la unidad ${consumoUnidad} no es compatible.`
       );
       return;
     }
@@ -311,11 +260,11 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
 
     if (totalStock + 1e-6 < normalizedQty) {
       setConsumoError(
-        `409 Conflict (EXISTENCIAS_INSUFICIENTES): Las existencias vigentes (${totalStock.toFixed(
+        `Las existencias vigentes (${totalStock.toFixed(
           2
         )} ${baseUnit}) no cubren los ${normalizedQty.toFixed(
           2
-        )} ${baseUnit} solicitados. Operación revertida sin descuentos parciales.`
+        )} ${baseUnit} solicitados.`
       );
       return;
     }
@@ -331,11 +280,10 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     setConsumoSuccess(
       `Consumo confirmado: ${normalizedQty.toFixed(
         2
-      )} ${baseUnit} descontados atómicamente por orden FEFO.`
+      )} ${baseUnit} descontados por orden de vencimiento (FEFO).`
     );
   };
 
-  // Switch Limpio en Header entre P-05 y P-06
   const headerSubNav = (
     <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-xl border border-stone-200">
       <button
@@ -350,7 +298,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
             : 'bg-transparent text-slate-600 hover:bg-white/70 font-semibold'
         }`}
       >
-        <span>1. Solicitudes de Revisión (P-05)</span>
+        <span>1. Solicitudes de Revisión</span>
         <span
           className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
             activeTab === 'solicitudes'
@@ -374,7 +322,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
             : 'bg-transparent text-slate-600 hover:bg-white/70 font-semibold'
         }`}
       >
-        <span>2. Galpones Aislados y En Tratamiento (P-06)</span>
+        <span>2. Galpones Aislados y En Tratamiento</span>
         <span
           className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
             activeTab === 'aislados'
@@ -388,7 +336,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     </div>
   );
 
-  // Obtener detalles FEFO del diagnóstico abierto en M-06
   const currentDiagConsumptions = consumoModalDiag
     ? vetMedConsumptions.filter((c) => c.diagnosticoId === consumoModalDiag.id)
     : [];
@@ -407,9 +354,12 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
     <VetShell activeNav="aislamiento-diagnostico" headerLeft={headerSubNav}>
       {activeTab === 'solicitudes' ? (
         /* =====================================================================
-           PANTALLA P-05: SOLICITUDES DE VALIDACIÓN DE AISLAMIENTO (Plan 014)
+           SOLICITUDES DE VALIDACIÓN DE AISLAMIENTO
            ===================================================================== */
-        <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+        <main
+          className="flex-1 px-8 py-5 flex flex-col gap-4"
+          style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+        >
           <div className="flex items-center justify-between shrink-0">
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
@@ -417,29 +367,22 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
                 Bandeja de peticiones enviadas por trabajadores de granja para evaluar y aprobar o
-                rechazar el paso a aislamiento (Plan 014 / Specs 020 y 010)
+                rechazar el paso a aislamiento
               </p>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setSimReqError('');
-                  setSimReqModalOpen(true);
-                }}
-                className="bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition border-0 cursor-pointer"
-              >
-                + Simular Solicitud de Trabajador (Spec 020)
-              </button>
               <span className="bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold px-3.5 py-1.5 rounded-xl">
                 {countReqPending} Solicitudes pendientes de decisión veterinaria
               </span>
             </div>
           </div>
 
-          <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-            <div className="flex flex-col min-h-0">
+          <section
+            className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+            style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+          >
+            <div className="flex-1 flex flex-col">
               <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
                 <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
                   <button
@@ -505,17 +448,17 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
               </div>
 
-              <div className="overflow-auto rounded-xl border border-stone-200/90">
+              <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
                 <table className="w-full text-left border-collapse table-fixed">
                   <thead>
                     <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
                       <th className="py-3 px-4 w-[14%]">Galpón / Lote</th>
-                      <th className="py-3 px-3 w-[15%]">Población / Edad</th>
+                      <th className="py-3 px-3 w-[14%]">Población / Edad</th>
                       <th className="py-3 px-3 w-[13%]">Fecha Emisión</th>
-                      <th className="py-3 px-3 w-[28%]">Motivo y Signos Observados</th>
+                      <th className="py-3 px-3 w-[26%]">Motivo y Signos Observados</th>
                       <th className="py-3 px-2.5 text-center w-[12%]">Estado Galpón</th>
                       <th className="py-3 px-2.5 text-center w-[10%]">Solicitud</th>
-                      <th className="py-3 px-4 text-right w-[8%]">Acción</th>
+                      <th className="py-3 px-4 text-right w-[11%]">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-200/70 text-xs">
@@ -605,7 +548,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                               <button
                                 type="button"
                                 onClick={() => openEvaluateModal(req)}
-                                className="bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition border-0 cursor-pointer"
+                                className="bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition border-0 cursor-pointer whitespace-nowrap"
                               >
                                 Evaluar
                               </button>
@@ -623,7 +566,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+            <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
               <p className="m-0">
                 El estado del galpón solo cambia de <strong>Productivo</strong> a{' '}
                 <strong>Aislamiento</strong> cuando el veterinario aprueba la solicitud.
@@ -636,9 +579,12 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
         </main>
       ) : (
         /* =====================================================================
-           PANTALLA P-06: GALPONES AISLADOS Y DIAGNÓSTICO CLÍNICO (Planes 015 y 012)
+           GALPONES AISLADOS Y DIAGNÓSTICO CLÍNICO
            ===================================================================== */
-        <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+        <main
+          className="flex-1 px-8 py-5 flex flex-col gap-4"
+          style={{ minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}
+        >
           <div className="flex items-center justify-between shrink-0">
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
@@ -646,7 +592,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
                 Monitoreo de galpones en aislamiento, registro de diagnósticos clínicos, fecha de
-                reintegro y consumos reales de medicamentos (Planes 015 y 012)
+                reintegro y consumos reales de medicamentos
               </p>
             </div>
 
@@ -668,8 +614,11 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
             </button>
           </div>
 
-          <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
-            <div className="flex flex-col min-h-0">
+          <section
+            className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between"
+            style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+          >
+            <div className="flex-1 flex flex-col">
               <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
                 <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
                   <button
@@ -723,13 +672,13 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </span>
               </div>
 
-              <div className="overflow-auto rounded-xl border border-stone-200/90">
+              <div className="flex-1 overflow-hidden rounded-xl border border-stone-200/90">
                 <table className="w-full text-left border-collapse table-fixed">
                   <thead>
                     <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
                       <th className="py-3 px-4 w-[14%]">Galpón / Lote</th>
                       <th className="py-3 px-3 text-center w-[11%]">Estado Galpón</th>
-                      <th className="py-3 px-3 w-[18%]">Enfermedad (Snapshot)</th>
+                      <th className="py-3 px-3 w-[18%]">Enfermedad</th>
                       <th className="py-3 px-3 w-[23%]">Medicación y Dosis Prescrita</th>
                       <th className="py-3 px-3 text-center w-[18%]">
                         Fecha Diagnóstico → Reintegro
@@ -829,9 +778,9 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                                   type="button"
                                   onClick={() => processDiagnosisReintegration(diag.id)}
                                   className="text-[10px] font-bold text-emerald-700 hover:underline bg-transparent border-0 cursor-pointer"
-                                  title="Simular cumplimiento de fecha de reintegro (ReintegroSanitarioScheduler Spec 011)"
+                                  title="Confirmar cumplimiento de fecha de reintegro"
                                 >
-                                  ✓ Simular reintegro cumplido
+                                  ✓ Confirmar reintegro cumplido
                                 </button>
                               </div>
                             </td>
@@ -892,7 +841,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                               onClick={() => navigate('/veterinario/ordenes')}
                               className="inline-block bg-red-100 hover:bg-red-200 text-red-900 border border-red-300 text-[11px] font-extrabold px-3 py-1 rounded-lg whitespace-nowrap cursor-pointer transition"
                             >
-                              Habilita Sacrificio (P-07)
+                              Habilita Sacrificio
                             </button>
                           </td>
                         </tr>
@@ -903,10 +852,10 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+            <div className="pt-3 mt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
               <p className="m-0">
-                Cada diagnóstico conserva una instantánea histórica inmutable de la enfermedad y de
-                la medicación vigente al momento de su confirmación.
+                Cada diagnóstico conserva el registro histórico de la enfermedad y de la medicación
+                vigente al momento de su confirmación.
               </p>
               <span className="font-semibold text-slate-700">
                 Mostrando {filteredIsolatedRows.length} registros en estado Aislamiento
@@ -916,11 +865,9 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
         </main>
       )}
 
-      {/* =====================================================================
-         MODAL M-04: EVALUAR Y VALIDAR / RECHAZAR AISLAMIENTO (Plan 014 / Spec 010)
-         ===================================================================== */}
+      {/* MODAL EVALUAR Y VALIDAR / RECHAZAR AISLAMIENTO */}
       {evaluatingReq && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[640px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -934,7 +881,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 m-0">
                   Revise los signos reportados por el trabajador y registre su decisión clínica
-                  (Spec 010)
                 </p>
               </div>
               <button
@@ -1021,7 +967,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                     />
                     <div>
                       <span className="block text-xs font-extrabold text-emerald-950">
-                        Aprobar Aislamiento (APROBADA)
+                        Aprobar Aislamiento
                       </span>
                       <span className="text-[11px] text-emerald-800 leading-tight block mt-0.5">
                         Cambia el galpón de <strong>Productivo</strong> a{' '}
@@ -1047,7 +993,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                     />
                     <div>
                       <span className="block text-xs font-extrabold text-slate-800">
-                        Rechazar Solicitud (RECHAZADA)
+                        Rechazar Solicitud
                       </span>
                       <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
                         Descarta el riesgo de aislamiento y conserva el galpón en estado{' '}
@@ -1098,108 +1044,9 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
         </div>
       )}
 
-      {/* =====================================================================
-         MODAL AUXILIAR: SIMULAR SOLICITUD DE AISLAMIENTO DE TRABAJADOR (Spec 020)
-         ===================================================================== */}
-      {simReqModalOpen && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
-          <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
-            <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 m-0">
-                  Simular Solicitud de Aislamiento (Trabajador · Spec 020)
-                </h3>
-                <p className="text-xs text-slate-500 m-0 mt-0.5">
-                  Registra una petición en PENDIENTE_VALIDACION sin cambiar el estado del galpón
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSimReqModalOpen(false)}
-                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 bg-transparent border-0 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSimRequest} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Galpón en estado Productivo <span className="text-red-600">*</span>
-                </label>
-                <select
-                  value={simReqGalponId}
-                  onChange={(e) => {
-                    setSimReqGalponId(e.target.value);
-                    setSimReqError('');
-                  }}
-                  className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
-                >
-                  {vetBarns
-                    .filter((b) => b.estado === 'PRODUCTIVO')
-                    .map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nombre} ({b.loteNombre} · {b.poblacionActual} aves vivas)
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Motivo de la sospecha sanitaria <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={simReqMotivo}
-                  onChange={(e) => setSimReqMotivo(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 px-3 py-2 text-xs text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Signos clínicos observados en campo <span className="text-red-600">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={simReqSignos}
-                  onChange={(e) => setSimReqSignos(e.target.value)}
-                  className="w-full rounded-xl border border-stone-300 p-3 text-xs text-slate-800 resize-none"
-                />
-              </div>
-
-              {simReqError && (
-                <p className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 m-0">
-                  {simReqError}
-                </p>
-              )}
-
-              <div className="pt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setSimReqModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-slate-700 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold shadow-sm border-0 cursor-pointer"
-                >
-                  Enviar Solicitud a Bandeja
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-         MODAL M-05: REGISTRAR DIAGNÓSTICO CLÍNICO DE GALPÓN (Plan 015 / Spec 011)
-         ===================================================================== */}
+      {/* MODAL REGISTRAR DIAGNÓSTICO CLÍNICO DE GALPÓN */}
       {diagModalOpen && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[640px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -1213,7 +1060,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 m-0">
                   Vincule la enfermedad diagnosticada y defina el manejo sanitario del lote aislado
-                  (Spec 011)
                 </p>
               </div>
               <button
@@ -1226,7 +1072,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
             </div>
 
             <form onSubmit={handleConfirmDiagnosis} className="p-6 space-y-4">
-              {/* 1. Selección / Confirmación de Galpón en Aislamiento y su Lote Activo */}
+              {/* 1. Selección de Galpón en Aislamiento y su Lote Activo */}
               <div className="grid grid-cols-2 gap-4 p-3.5 rounded-xl bg-stone-50 border border-stone-200/90">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
@@ -1246,7 +1092,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
                 <div>
                   <span className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Lote activo alojado (Automático Módulo 1)
+                    Lote activo alojado
                   </span>
                   <div className="px-3 py-2 rounded-xl bg-stone-200/70 border border-stone-300/80 text-xs font-bold text-slate-800 flex items-center justify-between">
                     <span>{selectedDiagBarn?.loteNombre || 'Lote #LDP-005'}</span>
@@ -1258,16 +1104,12 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
               </div>
 
-              {/* 2. Selección de Enfermedad del Catálogo (FR-004) */}
+              {/* 2. Selección de Enfermedad */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700">
-                    Enfermedad diagnosticada (Catálogo Plan 005){' '}
-                    <span className="text-red-600">*</span>
+                    Enfermedad diagnosticada <span className="text-red-600">*</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">
-                    Cambie la enfermedad para ver Rama Tratable vs. Rama Mortal
-                  </span>
                 </div>
 
                 <select
@@ -1295,7 +1137,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </select>
               </div>
 
-              {/* 3A / 3B: SECCIÓN CONDICIONAL SEGÚN requiereSacrificioSanitario */}
+              {/* 3. Sección Condicional según si requiere sacrificio sanitario */}
               {!selectedDiagDisease?.requiereSacrificioSanitario ? (
                 <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-3">
                   <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
@@ -1309,7 +1151,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Medicación compatible para {selectedDiagDisease?.nombre} (Plan 006){' '}
+                      Medicación compatible para {selectedDiagDisease?.nombre}{' '}
                       <span className="text-red-600">*</span>
                     </label>
                     <select
@@ -1319,7 +1161,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                     >
                       {compatibleMedications.length === 0 ? (
                         <option value="">
-                          No hay medicaciones registradas para esta enfermedad (registre una en P-04)
+                          No hay medicaciones registradas para esta enfermedad
                         </option>
                       ) : (
                         compatibleMedications.map((m) => (
@@ -1331,7 +1173,6 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                     </select>
                   </div>
 
-                  {/* Snapshot Terapéutico y Cálculo Automático de Fecha de Reintegro */}
                   <div className="grid grid-cols-3 gap-3 text-xs pt-1">
                     <div className="bg-white p-2.5 rounded-lg border border-emerald-200/80">
                       <span className="text-[10px] text-slate-400 block">
@@ -1361,7 +1202,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                       {addDaysFormatted('2026-10-30', selectedDiagMedication?.diasTotales || 5)}
                     </strong>
                     , el sistema cambiará automáticamente el estado del galpón de{' '}
-                    <strong>Aislamiento</strong> a <strong>Productivo</strong> (FR-009).
+                    <strong>Aislamiento</strong> a <strong>Productivo</strong>.
                   </p>
                 </div>
               ) : (
@@ -1375,11 +1216,10 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                     </span>
                   </div>
                   <p className="text-xs text-red-900 leading-relaxed m-0">
-                    La patología seleccionada exige sacrificio sanitario total. Conforme a{' '}
-                    <strong>Spec 011 (FR-006)</strong>, este diagnóstico{' '}
+                    La patología seleccionada exige sacrificio sanitario total. Este diagnóstico{' '}
                     <strong>no acepta medicación</strong>,{' '}
                     <strong>no calcula fecha de reintegro</strong> y habilita la emisión de la{' '}
-                    <strong>Orden de Sacrificio Sanitario Total (Plan 008)</strong>.
+                    <strong>Orden de Sacrificio Sanitario Total</strong>.
                   </p>
                 </div>
               )}
@@ -1410,11 +1250,9 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
         </div>
       )}
 
-      {/* =====================================================================
-         MODAL M-06: REGISTRAR CONSUMO REAL DE MEDICAMENTO FEFO (Plan 012 / Spec 013)
-         ===================================================================== */}
+      {/* MODAL REGISTRAR CONSUMO REAL DE MEDICAMENTO FEFO */}
       {consumoModalDiag && (
-        <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-[2px] flex items-center justify-center z-50">
           <div className="bg-white w-[660px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
             <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
               <div>
@@ -1428,7 +1266,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 m-0">
                   Descuenta existencias del inventario por fecha de vencimiento más próxima y
-                  conserva precios históricos para Módulo 3 (Spec 013)
+                  conserva precios históricos
                 </p>
               </div>
               <button
@@ -1441,11 +1279,11 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
             </div>
 
             <form onSubmit={handleConfirmConsumo} className="p-6 space-y-4">
-              {/* 1. Datos Derivados Automáticamente e Inmutables desde el Diagnóstico (Spec 013 FR-003) */}
+              {/* 1. Datos Derivados Automáticamente desde el Diagnóstico */}
               <div className="p-3.5 rounded-xl bg-stone-100 border border-stone-200/90 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                    Datos derivados automáticamente del diagnóstico activo (No editables · FR-003)
+                    Datos derivados automáticamente del diagnóstico activo
                   </span>
                   <span className="text-[10px] font-bold text-[#185C2B] bg-emerald-100 px-2 py-0.5 rounded">
                     Unidad Base Inventario: {consumoModalDiag.unidadBaseHistorica || 'GRAMO'} ·
@@ -1476,7 +1314,7 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </div>
               </div>
 
-              {/* 2. Formulario con los 3 Únicos Campos Editables del Request (cantidad, unidad, fechaAplicacion - FR-004) */}
+              {/* 2. Formulario con los 3 Campos Editables */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1547,15 +1385,11 @@ function VetDiagnosePage({ defaultTab = 'aislados' }) {
                 </p>
               )}
 
-              {/* 3. Desglose Histórico por Recepción FEFO para Costeo en Módulo 3 (FR-007 y FR-008) */}
+              {/* 3. Desglose Histórico por Recepción FEFO */}
               <div className="border border-stone-200 rounded-xl overflow-hidden">
                 <div className="bg-stone-50 px-4 py-2 border-b border-stone-200 flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-700">
-                    Historial de Consumos y Trazabilidad FEFO por Recepción (Sin promediar precios
-                    · FR-008)
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-500">
-                    Disponible para Módulo 3 (Finanzas)
+                    Historial de Consumos y Trazabilidad FEFO por Recepción
                   </span>
                 </div>
                 <div className="max-h-36 overflow-auto">
