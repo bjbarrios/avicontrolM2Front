@@ -14,6 +14,7 @@ import NutritionistDashboardPage from './pages/NutritionistDashboardPage';
 import NutritionistPlansPage from './pages/NutritionistPlansPage';
 import NutritionistAssignmentsPage from './pages/NutritionistAssignmentsPage';
 import VetDashboardPage from './pages/VetDashboardPage';
+import VetAlertsPage from './pages/VetAlertsPage';
 import VetSlaughterOrdersPage from './pages/VetSlaughterOrdersPage';
 import VetDiagnosePage from './pages/VetDiagnosePage';
 import VetDiseasesPage from './pages/VetDiseasesPage';
@@ -43,12 +44,18 @@ function App() {
                 <Route path="/nutricionista/planes" element={<NutritionistPlansPage />} />
                 <Route path="/nutricionista/asignaciones" element={<NutritionistAssignmentsPage />} />
                 <Route path="/nutricionista/*" element={<Navigate to="/nutricionista" replace />} />
+
+                {/* Actor Veterinario — Prototipos P-02 a P-07 y Modales M-01 a M-07B */}
                 <Route path="/veterinario" element={<VetDashboardPage />} />
-                <Route path="/veterinario/ordenes" element={<VetSlaughterOrdersPage />} />
-                <Route path="/veterinario/diagnosticar" element={<VetDiagnosePage />} />
+                <Route path="/veterinario/alertas" element={<VetAlertsPage />} />
                 <Route path="/veterinario/enfermedades" element={<VetDiseasesPage />} />
                 <Route path="/veterinario/medicinas" element={<VetMedicinesPage />} />
+                <Route path="/veterinario/medicaciones" element={<VetMedicinesPage />} />
+                <Route path="/veterinario/aislamiento" element={<VetDiagnosePage defaultTab="solicitudes" />} />
+                <Route path="/veterinario/diagnosticar" element={<VetDiagnosePage defaultTab="aislados" />} />
+                <Route path="/veterinario/ordenes" element={<VetSlaughterOrdersPage />} />
                 <Route path="/veterinario/*" element={<Navigate to="/veterinario" replace />} />
+
                 <Route path="/trabajador/*" element={<WorkerDashboardPage />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>

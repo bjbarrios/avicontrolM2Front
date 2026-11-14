@@ -1,528 +1,544 @@
 import { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import VetShell from '../components/VetShell';
 import { FarmContext } from '../context/FarmContext';
-import Sidebar from '../components/Sidebar';
-import Topbar from '../components/Topbar';
-import StatCard from '../components/StatCard';
-import BaseModal from '../components/BaseModal';
-import ApiMessage from '../components/ApiMessage';
 
 function VetDiseasesPage() {
-  const { vetDiseases, saveVetDisease } = useContext(FarmContext);
+  const navigate = useNavigate();
+  const {
+    vetCatalogDiseases = [],
+    vetCatalogMedications = [],
+    saveCatalogDisease
+  } = useContext(FarmContext);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('Todas');
-  const [riskFilter, setRiskFilter] = useState('Todos');
-  const [toastMsg, setToastMsg] = useState('');
+  const [sacrificioFilter, setSacrificioFilter] = useState('ALL');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [detailDisease, setDetailDisease] = useState(null);
+  // Campos del formulario (Spec 009 FR-002 y FR-004)
+  const [nombre, setNombre] = useState('');
+  const [tipo, setTipo] = useState('');
+  const [nivelRiesgo, setNivelRiesgo] = useState('');
+  const [requiereSacrificio, setRequiereSacrificio] = useState(null);
+  const [descripcionClinica, setDescripcionClinica] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const [form, setForm] = useState({
-    id: '',
-    nombre: '',
-    tipo: 'Viral',
-    agente: '',
-    riesgo: 'Alto',
-    aislamientoObligatorio: true,
-    sintomas: '',
-    protocolo: ''
-  });
-
-  const filteredDiseases = vetDiseases.filter((row) => {
-    const q = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      row.id.toLowerCase().includes(q) ||
-      row.nombre.toLowerCase().includes(q) ||
-      row.agente.toLowerCase().includes(q) ||
-      row.sintomas.toLowerCase().includes(q);
-    const matchesType = typeFilter === 'Todas' || row.tipo === typeFilter;
-    const matchesRisk = riskFilter === 'Todos' || row.riesgo === riskFilter;
-    return matchesSearch && matchesType && matchesRisk;
-  });
-
-  const highRiskCount = vetDiseases.filter(
-    (d) => d.riesgo === 'Alto' || d.aislamientoObligatorio
+  const totalCount = vetCatalogDiseases.length;
+  const tratablesCount = vetCatalogDiseases.filter(
+    (d) => !d.requiereSacrificioSanitario
+  ).length;
+  const sacrificioCount = vetCatalogDiseases.filter(
+    (d) => d.requiereSacrificioSanitario
   ).length;
 
-  const handleOpenNew = () => {
-    const nextNum = String(vetDiseases.length + 1).padStart(3, '0');
-    setForm({
-      id: `#ENF-${nextNum}`,
-      nombre: '',
-      tipo: 'Viral',
-      agente: '',
-      riesgo: 'Alto',
-      aislamientoObligatorio: true,
-      sintomas: '',
-      protocolo: ''
-    });
-    setIsModalOpen(true);
+  const filteredDiseases = vetCatalogDiseases
+    .filter((d) => {
+      if (sacrificioFilter === 'TRATABLES' && d.requiereSacrificioSanitario) return false;
+      if (sacrificioFilter === 'SACRIFICIO' && !d.requiereSacrificioSanitario) return false;
+      if (searchTerm.trim()) {
+        return d.nombre.toLowerCase().includes(searchTerm.trim().toLowerCase());
+      }
+      return true;
+    })
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+  const openNewModal = () => {
+    setEditingId(null);
+    setNombre('');
+    setTipo('');
+    setNivelRiesgo('');
+    setRequiereSacrificio(null); // FR-004: sin valor predeterminado
+    setDescripcionClinica('');
+    setFormError('');
+    setModalOpen(true);
   };
 
-  const handleOpenEdit = (disease) => {
-    setForm({ ...disease });
-    setIsModalOpen(true);
+  const openEditModal = (disease) => {
+    setEditingId(disease.id);
+    setNombre(disease.nombre);
+    setTipo(disease.tipo);
+    setNivelRiesgo(disease.nivelRiesgo);
+    setRequiereSacrificio(Boolean(disease.requiereSacrificioSanitario));
+    setDescripcionClinica(disease.descripcionClinica);
+    setFormError('');
+    setModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
-    saveVetDisease(form);
-    setIsModalOpen(false);
-    setToastMsg(
-      `Enfermedad "${form.nombre}" (${form.id}) guardada en el catálogo sanitario.`
+    const cleanNombre = nombre.trim();
+    const cleanDesc = descripcionClinica.trim();
+
+    if (!cleanNombre || !tipo || !nivelRiesgo || !cleanDesc || requiereSacrificio === null) {
+      setFormError(
+        'Todos los campos son obligatorios, incluyendo la selección explícita de si requiere sacrificio sanitario (Spec 009 FR-003 y FR-004).'
+      );
+      return;
+    }
+
+    const duplicate = vetCatalogDiseases.some(
+      (d) =>
+        d.id !== editingId && d.nombre.trim().toLowerCase() === cleanNombre.toLowerCase()
+    );
+    if (duplicate) {
+      setFormError(
+        `409 Conflict: Ya existe una enfermedad registrada con el nombre "${cleanNombre}".`
+      );
+      return;
+    }
+
+    saveCatalogDisease({
+      id: editingId,
+      nombre: cleanNombre,
+      tipo,
+      nivelRiesgo,
+      requiereSacrificioSanitario: Boolean(requiereSacrificio),
+      descripcionClinica: cleanDesc
+    });
+
+    setModalOpen(false);
+  };
+
+  const renderTipoBadge = (tipoVal) => {
+    const map = {
+      FUNGICA: 'bg-purple-50 text-purple-800 border-purple-200',
+      VIRAL: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+      PARASITARIA: 'bg-teal-50 text-teal-800 border-teal-200',
+      BACTERIANA: 'bg-sky-50 text-sky-800 border-sky-200'
+    };
+    const labelMap = {
+      FUNGICA: 'FÚNGICA',
+      VIRAL: 'VIRAL',
+      PARASITARIA: 'PARASITARIA',
+      BACTERIANA: 'BACTERIANA'
+    };
+    return (
+      <span
+        className={`inline-block border text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
+          map[tipoVal] || map.VIRAL
+        }`}
+      >
+        {labelMap[tipoVal] || tipoVal}
+      </span>
     );
   };
 
-  const getRiskBadge = (riesgo) => {
-    if (riesgo === 'Alto') {
-      return { bg: '#ffe0e3', color: '#ed2b33', dot: '/assets/dot-red.svg' };
+  const renderRiesgoBadge = (riesgoVal) => {
+    if (riesgoVal === 'CRITICO') {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-red-100 text-red-800 border border-red-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+          CRÍTICO
+        </span>
+      );
     }
-    if (riesgo === 'Medio') {
-      return { bg: '#ffe8ba', color: '#bf5400', dot: '/assets/dot-orange.svg' };
+    if (riesgoVal === 'ALTO') {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-800 border border-orange-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+          ALTO
+        </span>
+      );
     }
-    return {
-      bg: '#d6f0d1',
-      color: '#1f5929',
-      dot: '/assets/vet-dot-aceptada.svg'
-    };
+    if (riesgoVal === 'MEDIO') {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          MEDIO
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        BAJO
+      </span>
+    );
   };
 
-  return (
-    <div className="avi-role-layout">
-      <Sidebar role="veterinario" />
-
-      <div className="avi-main-frame">
-        <Topbar roleLabel="Veterinario" avatarSrc="/assets/vet-avatar.svg" />
-        <ApiMessage
-          message={toastMsg}
-          type="success"
-          onClose={() => setToastMsg('')}
-        />
-
-        <div className="avi-dashboard-content">
-          {/* Subtítulo superior y botón de acción */}
-          <div className="avi-page-heading">
-            <div className="avi-heading-copy">
-              <p className="avi-page-subtitle">
-                Catálogo y registro de patologías aviares, sintomatología clínica y protocolos de aislamiento
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="avi-btn-green-cta"
-              onClick={handleOpenNew}
-            >
-              <span>＋  Registrar enfermedad</span>
-            </button>
-          </div>
-
-          {/* 2 Tarjetas KPI */}
-          <div className="avi-metrics-row">
-            <StatCard
-              label="Enfermedades registradas"
-              value={`${vetDiseases.length} Patologías`}
-              status="Catálogo epidemiológico activo"
-              statusColor="#2d743b"
-              icon="/assets/vet-stethoscope.svg"
-              tileBg="#e6f7e4"
-              width="437px"
-            />
-            <StatCard
-              label="Patologías de cuarentena"
-              value={`${highRiskCount} Alto riesgo`}
-              status="Exigen aislamiento obligatorio"
-              statusColor="#9e4a0f"
-              icon="/assets/vet-bell.svg"
-              tileBg="#f4eee3"
-              width="437px"
-            />
-          </div>
-
-          {/* Barra de búsqueda y filtro */}
-          <form
-            className="avi-receptions-filter-bar"
-            onSubmit={(e) => e.preventDefault()}
-          >
-            <input
-              type="text"
-              className="avi-receptions-search-input"
-              placeholder="Buscar por enfermedad, agente causal o síntomas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            <select
-              className="avi-receptions-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="Todas">Todos los tipos</option>
-              <option value="Viral">Viral</option>
-              <option value="Bacteriana">Bacteriana</option>
-              <option value="Parasitaria">Parasitaria</option>
-              <option value="Metabólica">Metabólica</option>
-            </select>
-
-            <select
-              className="avi-receptions-select"
-              value={riskFilter}
-              onChange={(e) => setRiskFilter(e.target.value)}
-            >
-              <option value="Todos">Todos los niveles de riesgo</option>
-              <option value="Alto">Riesgo Alto</option>
-              <option value="Medio">Riesgo Medio</option>
-              <option value="Bajo">Riesgo Bajo</option>
-            </select>
-
-            <button
-              type="button"
-              className="avi-receptions-filter-btn"
-              onClick={() => {
-                setSearchTerm('');
-                setTypeFilter('Todas');
-                setRiskFilter('Todos');
-              }}
-            >
-              Filtrar
-            </button>
-          </form>
-
-          {/* Tabla de Enfermedades */}
-          <div className="avi-recent-orders-panel">
-            <div className="avi-panel-header avi-panel-header-full">
-              <div className="avi-panel-icon-28">
-                <img alt="" src="/assets/admin-orders-icon.svg" />
-              </div>
-              <h2 className="avi-panel-title">
-                Catálogo de enfermedades y criterios diagnósticos
-              </h2>
-            </div>
-
-            <div className="avi-orders-table">
-              <div className="avi-orders-thead">
-                <span style={{ flex: '0.8' }}>Código</span>
-                <span style={{ flex: '1.5' }}>Nombre patología</span>
-                <span style={{ flex: '1' }}>Clasificación</span>
-                <span style={{ flex: '1.6' }}>Agente causal</span>
-                <span style={{ flex: '1' }}>Riesgo</span>
-                <span style={{ flex: '1' }}>Aislamiento</span>
-                <span style={{ flex: '1.2', textAlign: 'right' }}>Acciones</span>
-              </div>
-
-              {filteredDiseases.map((row) => {
-                const rk = getRiskBadge(row.riesgo);
-                return (
-                  <div key={row.id} className="avi-orders-trow">
-                    <span
-                      className="avi-col-dark"
-                      style={{ flex: '0.8', fontWeight: 700 }}
-                    >
-                      {row.id}
-                    </span>
-                    <span
-                      className="avi-col-dark"
-                      style={{ flex: '1.5', fontWeight: 600 }}
-                    >
-                      {row.nombre}
-                    </span>
-                    <span className="avi-col-dark" style={{ flex: '1' }}>
-                      {row.tipo}
-                    </span>
-                    <span className="avi-col-muted" style={{ flex: '1.6' }}>
-                      {row.agente}
-                    </span>
-                    <div style={{ flex: '1', display: 'flex', alignItems: 'center' }}>
-                      <div
-                        className="avi-crit-badge"
-                        style={{ backgroundColor: rk.bg }}
-                      >
-                        <div className="avi-crit-dot">
-                          <img alt="" src={rk.dot} />
-                        </div>
-                        <span style={{ color: rk.color }}>{row.riesgo}</span>
-                      </div>
-                    </div>
-                    <span
-                      className="avi-col-dark"
-                      style={{
-                        flex: '1',
-                        fontWeight: 600,
-                        color: row.aislamientoObligatorio ? '#b45309' : '#2d743b'
-                      }}
-                    >
-                      {row.aislamientoObligatorio ? 'Obligatorio' : 'Preventivo'}
-                    </span>
-                    <div
-                      style={{
-                        flex: '1.2',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: '6px'
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="avi-admin-table-btn avi-admin-table-btn-green"
-                        onClick={() => setDetailDisease(row)}
-                      >
-                        Ver ficha
-                      </button>
-                      <button
-                        type="button"
-                        className="avi-admin-table-btn avi-admin-table-btn-orange"
-                        onClick={() => handleOpenEdit(row)}
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal: Registrar / Editar Enfermedad */}
-      <BaseModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        maxWidth="720px"
+  const headerSubNav = (
+    <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-xl border border-stone-200">
+      <button
+        type="button"
+        onClick={() => navigate('/veterinario/enfermedades')}
+        className="px-4 py-1.5 rounded-lg bg-[#185C2B] text-white text-xs font-bold shadow-sm flex items-center gap-2 border-0 cursor-pointer"
       >
-        <form className="avi-figma-modal-720" onSubmit={handleSubmit}>
-          <div className="avi-figma-modal-header">
-            <div className="avi-figma-modal-titles">
-              <h2 className="avi-figma-modal-title">
-                Registrar enfermedad aviar ({form.id})
-              </h2>
-              <p className="avi-figma-modal-subtitle">
-                Estandariza patologías para los diagnósticos clínicos y protocolos de bioseguridad
-              </p>
-            </div>
-            <button
-              type="button"
-              className="avi-figma-modal-close"
-              onClick={() => setIsModalOpen(false)}
-            >
-              ×
-            </button>
+        <span>1. Catálogo de Enfermedades (P-03)</span>
+        <span className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+          {vetCatalogDiseases.length}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate('/veterinario/medicinas')}
+        className="px-4 py-1.5 rounded-lg text-slate-600 hover:bg-white/70 text-xs font-semibold transition flex items-center gap-2 bg-transparent border-0 cursor-pointer"
+      >
+        <span>2. Catálogo de Medicaciones (P-04)</span>
+        <span className="bg-stone-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+          {vetCatalogMedications.length}
+        </span>
+      </button>
+    </div>
+  );
+
+  return (
+    <VetShell activeNav="gestion-sanitaria" headerLeft={headerSubNav}>
+      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+        {/* ENCABEZADO + BOTÓN PRINCIPAL QUE ABRE EL MODAL */}
+        <div className="flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
+              Catálogo de Enfermedades
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
+              Registro y consulta de patologías avícolas, clasificación clínica y manejo sanitario
+              (Plan 005 / Spec 009)
+            </p>
           </div>
 
-          <div className="avi-figma-modal-grid">
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">Nombre de la patología</label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Gumboro (Infección de la Bolsa de Fabricio)"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-              />
-            </div>
+          <button
+            type="button"
+            onClick={openNewModal}
+            className="bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 border-0 cursor-pointer"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Registrar Nueva Enfermedad
+          </button>
+        </div>
 
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">Clasificación etiológica</label>
-              <div className="avi-figma-select-wrap">
-                <select
-                  className="avi-figma-input avi-figma-select"
-                  value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO: BUSCADOR, FILTROS Y TABLA */}
+        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
+          <div className="flex flex-col min-h-0">
+            {/* Barra de Búsqueda y Filtro por Sacrificio Sanitario (FR-007) */}
+            <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
+              <div className="relative w-[380px]">
+                <svg
+                  className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
                 >
-                  <option value="Viral">Viral</option>
-                  <option value="Bacteriana">Bacteriana</option>
-                  <option value="Parasitaria">Parasitaria</option>
-                  <option value="Metabólica">Metabólica</option>
-                </select>
-                <img
-                  alt=""
-                  src="/assets/admin-select-chevron.svg"
-                  className="avi-figma-select-chevron"
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar enfermedad por nombre..."
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-200 bg-stone-50 text-xs text-slate-800 focus:outline-none focus:border-[#185C2B]"
                 />
               </div>
-            </div>
 
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">Agente causal</label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Birnavirus aviar / Salmonella spp."
-                value={form.agente}
-                onChange={(e) => setForm({ ...form, agente: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">
-                Nivel de riesgo y aislamiento
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div className="avi-figma-select-wrap">
-                  <select
-                    className="avi-figma-input avi-figma-select"
-                    value={form.riesgo}
-                    onChange={(e) => setForm({ ...form, riesgo: e.target.value })}
-                  >
-                    <option value="Alto">Riesgo Alto</option>
-                    <option value="Medio">Riesgo Medio</option>
-                    <option value="Bajo">Riesgo Bajo</option>
-                  </select>
-                  <img
-                    alt=""
-                    src="/assets/admin-select-chevron.svg"
-                    className="avi-figma-select-chevron"
-                  />
-                </div>
-                <div className="avi-figma-select-wrap">
-                  <select
-                    className="avi-figma-input avi-figma-select"
-                    value={form.aislamientoObligatorio ? 'si' : 'no'}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        aislamientoObligatorio: e.target.value === 'si'
-                      })
-                    }
-                  >
-                    <option value="si">Aislamiento Obligatorio</option>
-                    <option value="no">Manejo Preventivo</option>
-                  </select>
-                  <img
-                    alt=""
-                    src="/assets/admin-select-chevron.svg"
-                    className="avi-figma-select-chevron"
-                  />
-                </div>
+              <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setSacrificioFilter('ALL')}
+                  className={`px-3.5 py-1.5 rounded-lg transition border-0 cursor-pointer ${
+                    sacrificioFilter === 'ALL'
+                      ? 'bg-white text-slate-900 shadow-sm font-bold'
+                      : 'bg-transparent text-slate-600 hover:bg-white/60'
+                  }`}
+                >
+                  Todas ({totalCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSacrificioFilter('TRATABLES')}
+                  className={`px-3.5 py-1.5 rounded-lg transition border-0 cursor-pointer ${
+                    sacrificioFilter === 'TRATABLES'
+                      ? 'bg-white text-emerald-800 shadow-sm font-bold'
+                      : 'bg-transparent text-emerald-800 hover:bg-white/60'
+                  }`}
+                >
+                  Tratables · Admite medicación ({tratablesCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSacrificioFilter('SACRIFICIO')}
+                  className={`px-3.5 py-1.5 rounded-lg transition border-0 cursor-pointer ${
+                    sacrificioFilter === 'SACRIFICIO'
+                      ? 'bg-white text-red-700 shadow-sm font-bold'
+                      : 'bg-transparent text-red-700 hover:bg-white/60'
+                  }`}
+                >
+                  Requieren Sacrificio Sanitario ({sacrificioCount})
+                </button>
               </div>
             </div>
 
-            <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-              <label className="avi-figma-label">
-                Signos clínicos y lesiones características
-              </label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Depresión aguda, diarrea blanquecina, postración..."
-                value={form.sintomas}
-                onChange={(e) => setForm({ ...form, sintomas: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-              <label className="avi-figma-label">
-                Protocolo sanitario y de bioseguridad recomendado
-              </label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Cuarentena de galpón, desinfección de equipos..."
-                value={form.protocolo}
-                onChange={(e) => setForm({ ...form, protocolo: e.target.value })}
-                required
-              />
+            {/* Tabla del Catálogo */}
+            <div className="overflow-auto rounded-xl border border-stone-200/90">
+              <table className="w-full text-left border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
+                    <th className="py-3 px-4 w-[22%]">Nombre de la Enfermedad</th>
+                    <th className="py-3 px-3 w-[13%]">Tipo</th>
+                    <th className="py-3 px-3 w-[13%]">Nivel de Riesgo</th>
+                    <th className="py-3 px-4 w-[32%]">Descripción Clínica</th>
+                    <th className="py-3 px-3 text-center w-[12%]">¿Requiere Sacrificio?</th>
+                    <th className="py-3 px-4 text-right w-[8%]">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200/70 text-xs">
+                  {filteredDiseases.map((disease) => (
+                    <tr
+                      key={disease.id}
+                      className={`hover:bg-stone-50/80 transition ${
+                        disease.requiereSacrificioSanitario ? 'bg-red-50/20' : ''
+                      }`}
+                    >
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {disease.nombre}
+                      </td>
+                      <td className="py-3.5 px-3">{renderTipoBadge(disease.tipo)}</td>
+                      <td className="py-3.5 px-3">{renderRiesgoBadge(disease.nivelRiesgo)}</td>
+                      <td className="py-3.5 px-4 text-slate-600 truncate">
+                        {disease.descripcionClinica}
+                      </td>
+                      <td className="py-3.5 px-3 text-center">
+                        {disease.requiereSacrificioSanitario ? (
+                          <span className="inline-block bg-red-100 text-red-800 border border-red-200 text-[11px] font-bold px-3 py-0.5 rounded-full">
+                            Sí (Sacrificio)
+                          </span>
+                        ) : (
+                          <span className="inline-block bg-emerald-100 text-emerald-800 text-[11px] font-bold px-3 py-0.5 rounded-full">
+                            No (Tratable)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(disease)}
+                          className="px-3 py-1 rounded-lg border border-stone-300 hover:border-[#185C2B] hover:text-[#185C2B] text-slate-700 font-semibold text-xs transition bg-white cursor-pointer"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="avi-figma-modal-footer">
-            <button
-              type="button"
-              className="avi-figma-btn-cancel"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="avi-figma-btn-green">
-              Guardar enfermedad
-            </button>
+          {/* Pie de Tabla informativo */}
+          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+            <p className="m-0">
+              Las ediciones sobre una enfermedad se aplicarán únicamente a diagnósticos futuros sin
+              alterar el historial clínico previo.
+            </p>
+            <span className="font-semibold text-slate-700">
+              Mostrando {filteredDiseases.length} enfermedades registradas (ordenadas A-Z)
+            </span>
           </div>
-        </form>
-      </BaseModal>
+        </section>
+      </main>
 
-      {/* Modal: Ficha Clínica de Enfermedad */}
-      <BaseModal
-        isOpen={Boolean(detailDisease)}
-        onClose={() => setDetailDisease(null)}
-        maxWidth="680px"
-      >
-        {detailDisease && (
-          <div className="avi-figma-modal-720">
-            <div className="avi-figma-modal-header">
-              <div className="avi-figma-modal-titles">
-                <h2 className="avi-figma-modal-title">
-                  {detailDisease.nombre} ({detailDisease.id})
-                </h2>
-                <p className="avi-figma-modal-subtitle">
-                  Clasificación {detailDisease.tipo} · Agente: {detailDisease.agente}
+      {/* 3. MODAL EMERGENTE: REGISTRAR / EDITAR ENFERMEDAD (Spec 009) */}
+      {modalOpen && (
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
+          <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 m-0">
+                  {editingId ? 'Editar Enfermedad' : 'Registrar Enfermedad'}
+                </h3>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">
+                  Complete todos los datos obligatorios para{' '}
+                  {editingId
+                    ? 'actualizar la patología para diagnósticos futuros'
+                    : 'agregar la patología al catálogo'}
                 </p>
               </div>
               <button
                 type="button"
-                className="avi-figma-modal-close"
-                onClick={() => setDetailDisease(null)}
+                onClick={() => setModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-stone-200/60 flex items-center justify-center transition bg-transparent border-0 cursor-pointer"
               >
-                ×
+                ✕
               </button>
             </div>
 
-            <div className="avi-figma-modal-grid">
-              <div className="avi-figma-field">
-                <label className="avi-figma-label">Nivel de riesgo</label>
-                <div className="avi-figma-readonly-box">
-                  Riesgo {detailDisease.riesgo}
-                </div>
+            <form onSubmit={handleSave} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nombre de la enfermedad <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    setFormError('');
+                  }}
+                  placeholder="Ej. Bronquitis Infecciosa Aviar"
+                  className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#185C2B]"
+                />
               </div>
-              <div className="avi-figma-field">
-                <label className="avi-figma-label">Medida de contención</label>
-                <div className="avi-figma-valid-box">
-                  {detailDisease.aislamientoObligatorio
-                    ? 'Aislamiento obligatorio de galpón'
-                    : 'Manejo preventivo en lote'}
-                </div>
-              </div>
-              <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-                <label className="avi-figma-label">Sintomatología principal</label>
-                <div className="avi-figma-readonly-box">
-                  {detailDisease.sintomas}
-                </div>
-              </div>
-              <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-                <label className="avi-figma-label">Protocolo recomendado</label>
-                <div className="avi-figma-demand-box">
-                  {detailDisease.protocolo}
-                </div>
-              </div>
-            </div>
 
-            <div className="avi-figma-modal-footer">
-              <button
-                type="button"
-                className="avi-figma-btn-cancel"
-                onClick={() => setDetailDisease(null)}
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                className="avi-figma-btn-orange"
-                onClick={() => {
-                  const target = detailDisease;
-                  setDetailDisease(null);
-                  handleOpenEdit(target);
-                }}
-              >
-                Editar enfermedad
-              </button>
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tipo de enfermedad <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={tipo}
+                    onChange={(e) => {
+                      setTipo(e.target.value);
+                      setFormError('');
+                    }}
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#185C2B]"
+                  >
+                    <option value="">Seleccione un tipo...</option>
+                    <option value="VIRAL">Viral</option>
+                    <option value="BACTERIANA">Bacteriana</option>
+                    <option value="PARASITARIA">Parasitaria</option>
+                    <option value="FUNGICA">Fúngica</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nivel de riesgo <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={nivelRiesgo}
+                    onChange={(e) => {
+                      setNivelRiesgo(e.target.value);
+                      setFormError('');
+                    }}
+                    className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#185C2B]"
+                  >
+                    <option value="">Seleccione el nivel...</option>
+                    <option value="BAJO">Bajo</option>
+                    <option value="MEDIO">Medio</option>
+                    <option value="ALTO">Alto</option>
+                    <option value="CRITICO">Crítico</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Selección explícita obligatoria: ¿Requiere sacrificio sanitario? (FR-004) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  ¿Requiere sacrificio sanitario? <span className="text-red-600">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    onClick={() => {
+                      setRequiereSacrificio(false);
+                      setFormError('');
+                    }}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
+                      requiereSacrificio === false
+                        ? 'border-2 border-[#185C2B] bg-emerald-50/50'
+                        : 'border-stone-300 hover:border-[#185C2B] bg-stone-50/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sacrificioModal"
+                      checked={requiereSacrificio === false}
+                      onChange={() => setRequiereSacrificio(false)}
+                      className="mt-0.5 accent-[#185C2B]"
+                    />
+                    <div>
+                      <span className="block text-xs font-bold text-slate-900">
+                        No (Enfermedad tratable)
+                      </span>
+                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                        Permite asociar medicaciones y calcular fecha de reintegro.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    onClick={() => {
+                      setRequiereSacrificio(true);
+                      setFormError('');
+                    }}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
+                      requiereSacrificio === true
+                        ? 'border-2 border-red-600 bg-red-50/50'
+                        : 'border-stone-300 hover:border-red-600 bg-stone-50/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sacrificioModal"
+                      checked={requiereSacrificio === true}
+                      onChange={() => setRequiereSacrificio(true)}
+                      className="mt-0.5 accent-red-600"
+                    />
+                    <div>
+                      <span className="block text-xs font-bold text-red-800">
+                        Sí (Enfermedad mortal)
+                      </span>
+                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                        Exige sacrificio sanitario total del lote sin medicación.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Descripción clínica <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={descripcionClinica}
+                  onChange={(e) => {
+                    setDescripcionClinica(e.target.value);
+                    setFormError('');
+                  }}
+                  placeholder="Describa los signos clínicos y lesiones características de la patología..."
+                  className="w-full rounded-xl border border-stone-300 p-3 text-xs text-slate-800 focus:outline-none focus:border-[#185C2B] resize-none"
+                />
+              </div>
+
+              {formError && (
+                <p className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 m-0">
+                  {formError}
+                </p>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-xs font-semibold text-slate-700 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold shadow-sm transition border-0 cursor-pointer"
+                >
+                  Guardar Enfermedad
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </BaseModal>
-    </div>
+        </div>
+      )}
+    </VetShell>
   );
 }
 

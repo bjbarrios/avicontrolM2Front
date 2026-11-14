@@ -1,535 +1,401 @@
 import { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import VetShell from '../components/VetShell';
 import { FarmContext } from '../context/FarmContext';
-import Sidebar from '../components/Sidebar';
-import Topbar from '../components/Topbar';
-import StatCard from '../components/StatCard';
-import BaseModal from '../components/BaseModal';
-import ApiMessage from '../components/ApiMessage';
 
 function VetMedicinesPage() {
-  const { vetMedicines, saveVetMedicine } = useContext(FarmContext);
+  const navigate = useNavigate();
+  const {
+    vetCatalogDiseases = [],
+    vetInventoryMedicines = [],
+    vetCatalogMedications = [],
+    saveCatalogMedication
+  } = useContext(FarmContext);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('Todas');
-  const [routeFilter, setRouteFilter] = useState('Todas');
-  const [toastMsg, setToastMsg] = useState('');
+  const [filterEnfermedadId, setFilterEnfermedadId] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [detailMed, setDetailMed] = useState(null);
+  // 5 Atributos obligatorios de Spec 008 FR-002
+  const [enfermedadId, setEnfermedadId] = useState('');
+  const [medicamentoId, setMedicamentoId] = useState('');
+  const [dosis, setDosis] = useState('');
+  const [diasTotales, setDiasTotales] = useState('5');
+  const [descripcion, setDescripcion] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const [form, setForm] = useState({
-    id: '',
-    nombre: '',
-    categoria: 'Antibiótico',
-    principioActivo: '',
-    via: 'Agua de bebida',
-    dosisRecomendada: '',
-    tiempoRetiroDias: 5,
-    indicaciones: ''
+  // FR-003: Solo enfermedades tratables (requiereSacrificioSanitario === false)
+  const treatableDiseases = vetCatalogDiseases
+    .filter((d) => !d.requiereSacrificioSanitario)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+  const filteredMedications = vetCatalogMedications.filter((m) => {
+    if (!filterEnfermedadId) return true;
+    return m.enfermedadId === filterEnfermedadId;
   });
 
-  const filteredMedicines = vetMedicines.filter((row) => {
-    const q = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      row.id.toLowerCase().includes(q) ||
-      row.nombre.toLowerCase().includes(q) ||
-      row.principioActivo.toLowerCase().includes(q) ||
-      row.indicaciones.toLowerCase().includes(q);
-    const matchesCategory =
-      categoryFilter === 'Todas' || row.categoria === categoryFilter;
-    const matchesRoute = routeFilter === 'Todas' || row.via === routeFilter;
-    return matchesSearch && matchesCategory && matchesRoute;
-  });
-
-  const withWithdrawalCount = vetMedicines.filter(
-    (m) => Number(m.tiempoRetiroDias) > 0
-  ).length;
-
-  const handleOpenNew = () => {
-    const nextNum = String(vetMedicines.length + 1).padStart(3, '0');
-    setForm({
-      id: `#MED-${nextNum}`,
-      nombre: '',
-      categoria: 'Antibiótico',
-      principioActivo: '',
-      via: 'Agua de bebida',
-      dosisRecomendada: '',
-      tiempoRetiroDias: 5,
-      indicaciones: ''
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (med) => {
-    setForm({ ...med });
-    setIsModalOpen(true);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    saveVetMedicine({
-      ...form,
-      tiempoRetiroDias: Math.max(0, parseInt(form.tiempoRetiroDias, 10) || 0)
-    });
-    setIsModalOpen(false);
-    setToastMsg(
-      `Medicina "${form.nombre}" (${form.id}) guardada en el vademécum veterinario.`
+  const openNewModal = () => {
+    setEditingId(null);
+    setEnfermedadId(treatableDiseases[0]?.id || '');
+    setMedicamentoId(vetInventoryMedicines[0]?.id || '');
+    setDosis('200 g diluidos en 100 L de agua potable');
+    setDiasTotales('5');
+    setDescripcion(
+      'Agua de bebida en bebederos automáticos, renovando la preparación cada 24 horas.'
     );
+    setFormError('');
+    setModalOpen(true);
   };
+
+  const openEditModal = (med) => {
+    setEditingId(med.id);
+    setEnfermedadId(med.enfermedadId);
+    setMedicamentoId(med.medicamentoId);
+    setDosis(med.dosis);
+    setDiasTotales(String(med.diasTotales));
+    setDescripcion(med.descripcion);
+    setFormError('');
+    setModalOpen(true);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    const cleanDosis = dosis.trim();
+    const cleanDesc = descripcion.trim();
+    const parsedDays = Number(diasTotales);
+
+    if (!enfermedadId || !medicamentoId || !cleanDosis || !cleanDesc) {
+      setFormError(
+        'Todos los campos (enfermedad tratable, medicamento, dosis, días totales y descripción) son obligatorios.'
+      );
+      return;
+    }
+
+    if (!Number.isInteger(parsedDays) || parsedDays <= 0) {
+      setFormError('La duración debe ser un número entero de días mayor que cero (Spec 008).');
+      return;
+    }
+
+    const selectedDisease = vetCatalogDiseases.find((d) => d.id === enfermedadId);
+    if (!selectedDisease || selectedDisease.requiereSacrificioSanitario) {
+      setFormError(
+        '409 Conflict: La enfermedad seleccionada requiere sacrificio sanitario y no admite medicación.'
+      );
+      return;
+    }
+
+    saveCatalogMedication({
+      id: editingId,
+      enfermedadId,
+      medicamentoId,
+      dosis: cleanDosis,
+      diasTotales: parsedDays,
+      descripcion: cleanDesc
+    });
+
+    setModalOpen(false);
+  };
+
+  const headerSubNav = (
+    <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-xl border border-stone-200">
+      <button
+        type="button"
+        onClick={() => navigate('/veterinario/enfermedades')}
+        className="px-4 py-1.5 rounded-lg text-slate-600 hover:bg-white/70 text-xs font-semibold transition flex items-center gap-2 bg-transparent border-0 cursor-pointer"
+      >
+        <span>1. Catálogo de Enfermedades (P-03)</span>
+        <span className="bg-stone-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+          {vetCatalogDiseases.length}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate('/veterinario/medicinas')}
+        className="px-4 py-1.5 rounded-lg bg-[#185C2B] text-white text-xs font-bold shadow-sm flex items-center gap-2 border-0 cursor-pointer"
+      >
+        <span>2. Catálogo de Medicaciones (P-04)</span>
+        <span className="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+          {vetCatalogMedications.length}
+        </span>
+      </button>
+    </div>
+  );
 
   return (
-    <div className="avi-role-layout">
-      <Sidebar role="veterinario" />
-
-      <div className="avi-main-frame">
-        <Topbar roleLabel="Veterinario" avatarSrc="/assets/vet-avatar.svg" />
-        <ApiMessage
-          message={toastMsg}
-          type="success"
-          onClose={() => setToastMsg('')}
-        />
-
-        <div className="avi-dashboard-content">
-          {/* Subtítulo superior y botón de acción */}
-          <div className="avi-page-heading">
-            <div className="avi-heading-copy">
-              <p className="avi-page-subtitle">
-                Vademécum farmacológico, posología recomendada y control de tiempos de retiro previo a sacrificio
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="avi-btn-green-cta"
-              onClick={handleOpenNew}
-            >
-              <span>＋  Registrar medicina</span>
-            </button>
+    <VetShell activeNav="gestion-sanitaria" headerLeft={headerSubNav}>
+      <main className="flex-1 px-8 py-5 flex flex-col gap-4 overflow-hidden">
+        {/* ENCABEZADO + BOTÓN PRINCIPAL QUE ABRE EL MODAL */}
+        <div className="flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight m-0">
+              Catálogo de Medicaciones
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5 m-0">
+              Protocolos terapéuticos estandarizados vinculados a enfermedades tratables y
+              medicamentos del inventario (Plan 006 / Spec 008)
+            </p>
           </div>
 
-          {/* 2 Tarjetas KPI */}
-          <div className="avi-metrics-row">
-            <StatCard
-              label="Medicinas registradas"
-              value={`${vetMedicines.length} Fármacos`}
-              status="Vademécum veterinario activo"
-              statusColor="#2d743b"
-              icon="/assets/vet-syringe.svg"
-              tileBg="#e6f7e4"
-              width="437px"
-            />
-            <StatCard
-              label="Con tiempo de retiro"
-              value={`${withWithdrawalCount} Medicinas`}
-              status="Control previo a cosecha"
-              statusColor="#9e4a0f"
-              icon="/assets/vet-stethoscope.svg"
-              tileBg="#f4eee3"
-              width="437px"
-            />
-          </div>
-
-          {/* Barra de búsqueda y filtro */}
-          <form
-            className="avi-receptions-filter-bar"
-            onSubmit={(e) => e.preventDefault()}
+          <button
+            type="button"
+            onClick={openNewModal}
+            className="bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 border-0 cursor-pointer"
           >
-            <input
-              type="text"
-              className="avi-receptions-search-input"
-              placeholder="Buscar por nombre comercial, principio activo o indicación..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            <select
-              className="avi-receptions-select"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
             >
-              <option value="Todas">Todas las categorías</option>
-              <option value="Antibiótico">Antibiótico</option>
-              <option value="Vacuna">Vacuna</option>
-              <option value="Antiparasitario">Antiparasitario</option>
-              <option value="Vitamina / Electrolito">Vitamina / Electrolito</option>
-            </select>
-
-            <select
-              className="avi-receptions-select"
-              value={routeFilter}
-              onChange={(e) => setRouteFilter(e.target.value)}
-            >
-              <option value="Todas">Todas las vías</option>
-              <option value="Agua de bebida">Agua de bebida</option>
-              <option value="Ocular / Agua">Ocular / Agua</option>
-              <option value="Alimento">Alimento</option>
-              <option value="Inyectable">Inyectable</option>
-            </select>
-
-            <button
-              type="button"
-              className="avi-receptions-filter-btn"
-              onClick={() => {
-                setSearchTerm('');
-                setCategoryFilter('Todas');
-                setRouteFilter('Todas');
-              }}
-            >
-              Filtrar
-            </button>
-          </form>
-
-          {/* Tabla de Medicinas */}
-          <div className="avi-recent-orders-panel">
-            <div className="avi-panel-header avi-panel-header-full">
-              <div className="avi-panel-icon-28">
-                <img alt="" src="/assets/vet-syringe.svg" />
-              </div>
-              <h2 className="avi-panel-title">
-                Catálogo de medicinas, dosis y tiempos de retiro
-              </h2>
-            </div>
-
-            <div className="avi-orders-table">
-              <div className="avi-orders-thead">
-                <span style={{ flex: '0.8' }}>Código</span>
-                <span style={{ flex: '1.6' }}>Medicamento</span>
-                <span style={{ flex: '1.1' }}>Categoría</span>
-                <span style={{ flex: '1.1' }}>Vía</span>
-                <span style={{ flex: '1.8' }}>Posología recomendada</span>
-                <span style={{ flex: '1' }}>Retiro</span>
-                <span style={{ flex: '1.2', textAlign: 'right' }}>Acciones</span>
-              </div>
-
-              {filteredMedicines.map((row) => {
-                const hasRetiro = Number(row.tiempoRetiroDias) > 0;
-                return (
-                  <div key={row.id} className="avi-orders-trow">
-                    <span
-                      className="avi-col-dark"
-                      style={{ flex: '0.8', fontWeight: 700 }}
-                    >
-                      {row.id}
-                    </span>
-                    <span
-                      className="avi-col-dark"
-                      style={{ flex: '1.6', fontWeight: 600 }}
-                    >
-                      {row.nombre}
-                    </span>
-                    <span className="avi-col-dark" style={{ flex: '1.1' }}>
-                      {row.categoria}
-                    </span>
-                    <span className="avi-col-muted" style={{ flex: '1.1' }}>
-                      {row.via}
-                    </span>
-                    <span className="avi-col-muted" style={{ flex: '1.8' }}>
-                      {row.dosisRecomendada}
-                    </span>
-                    <div style={{ flex: '1', display: 'flex', alignItems: 'center' }}>
-                      <div
-                        className="avi-crit-badge"
-                        style={{
-                          backgroundColor: hasRetiro ? '#ffe8ba' : '#d6f0d1'
-                        }}
-                      >
-                        <div className="avi-crit-dot">
-                          <img
-                            alt=""
-                            src={
-                              hasRetiro
-                                ? '/assets/dot-orange.svg'
-                                : '/assets/vet-dot-aceptada.svg'
-                            }
-                          />
-                        </div>
-                        <span
-                          style={{
-                            color: hasRetiro ? '#bf5400' : '#1f5929'
-                          }}
-                        >
-                          {hasRetiro
-                            ? `${row.tiempoRetiroDias} días`
-                            : '0 días'}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        flex: '1.2',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: '6px'
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="avi-admin-table-btn avi-admin-table-btn-green"
-                        onClick={() => setDetailMed(row)}
-                      >
-                        Ver ficha
-                      </button>
-                      <button
-                        type="button"
-                        className="avi-admin-table-btn avi-admin-table-btn-orange"
-                        onClick={() => handleOpenEdit(row)}
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Registrar Medicación
+          </button>
         </div>
-      </div>
 
-      {/* Modal: Registrar / Editar Medicina */}
-      <BaseModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        maxWidth="720px"
-      >
-        <form className="avi-figma-modal-720" onSubmit={handleSubmit}>
-          <div className="avi-figma-modal-header">
-            <div className="avi-figma-modal-titles">
-              <h2 className="avi-figma-modal-title">
-                Registrar medicina veterinaria ({form.id})
-              </h2>
-              <p className="avi-figma-modal-subtitle">
-                Configura principio activo, dosis estándar y días de retiro previo a sacrificio
-              </p>
-            </div>
-            <button
-              type="button"
-              className="avi-figma-modal-close"
-              onClick={() => setIsModalOpen(false)}
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="avi-figma-modal-grid">
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">Nombre del medicamento</label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Tilmicosina 25% Solución Oral"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">Categoría farmacológica</label>
-              <div className="avi-figma-select-wrap">
+        {/* TARJETA PRINCIPAL DE ANCHO COMPLETO: FILTRO OFICIAL (FR-006) Y TABLA */}
+        <section className="flex-1 bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col justify-between min-h-0">
+          <div className="flex flex-col min-h-0">
+            {/* Barra de Filtro por Enfermedad Tratable (GET /api/medicaciones?enfermedadId=uuid) */}
+            <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-bold text-slate-700 whitespace-nowrap">
+                  Filtrar por enfermedad tratable:
+                </label>
                 <select
-                  className="avi-figma-input avi-figma-select"
-                  value={form.categoria}
-                  onChange={(e) =>
-                    setForm({ ...form, categoria: e.target.value })
-                  }
+                  value={filterEnfermedadId}
+                  onChange={(e) => setFilterEnfermedadId(e.target.value)}
+                  className="w-[320px] rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#185C2B]"
                 >
-                  <option value="Antibiótico">Antibiótico</option>
-                  <option value="Vacuna">Vacuna</option>
-                  <option value="Antiparasitario">Antiparasitario</option>
-                  <option value="Vitamina / Electrolito">
-                    Vitamina / Electrolito
+                  <option value="">
+                    Todas las enfermedades tratables ({vetCatalogMedications.length})
                   </option>
+                  {treatableDiseases.map((enf) => {
+                    const count = vetCatalogMedications.filter(
+                      (m) => m.enfermedadId === enf.id
+                    ).length;
+                    return (
+                      <option key={enf.id} value={enf.id}>
+                        {enf.nombre} ({count})
+                      </option>
+                    );
+                  })}
                 </select>
-                <img
-                  alt=""
-                  src="/assets/admin-select-chevron.svg"
-                  className="avi-figma-select-chevron"
-                />
               </div>
+
+              <span className="bg-emerald-50 text-[#185C2B] border border-emerald-200/80 text-[11px] font-semibold px-3 py-1.5 rounded-xl">
+                Solo admite enfermedades tratables (sin sacrificio sanitario) · No descuenta
+                inventario físico
+              </span>
             </div>
 
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">
-                Principio activo y concentración
-              </label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Fosfato de tilmicosina 250 mg/ml"
-                value={form.principioActivo}
-                onChange={(e) =>
-                  setForm({ ...form, principioActivo: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <div className="avi-figma-field">
-              <label className="avi-figma-label">
-                Vía y tiempo de retiro (días)
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '8px' }}>
-                <div className="avi-figma-select-wrap">
-                  <select
-                    className="avi-figma-input avi-figma-select"
-                    value={form.via}
-                    onChange={(e) => setForm({ ...form, via: e.target.value })}
-                  >
-                    <option value="Agua de bebida">Agua de bebida</option>
-                    <option value="Ocular / Agua">Ocular / Agua</option>
-                    <option value="Alimento">Alimento</option>
-                    <option value="Inyectable">Inyectable</option>
-                  </select>
-                  <img
-                    alt=""
-                    src="/assets/admin-select-chevron.svg"
-                    className="avi-figma-select-chevron"
-                  />
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  className="avi-figma-input"
-                  value={form.tiempoRetiroDias}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      tiempoRetiroDias: parseInt(e.target.value, 10) || 0
-                    })
-                  }
-                  title="Días de retiro antes de sacrificio"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-              <label className="avi-figma-label">
-                Dosis y esquema terapéutico recomendado
-              </label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. 15–20 mg/kg PV en agua de bebida durante 3 a 5 días continuos"
-                value={form.dosisRecomendada}
-                onChange={(e) =>
-                  setForm({ ...form, dosisRecomendada: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-              <label className="avi-figma-label">Indicaciones terapéuticas</label>
-              <input
-                type="text"
-                className="avi-figma-input"
-                placeholder="Ej. Control de enfermedad respiratoria crónica y micoplasmosis aviar..."
-                value={form.indicaciones}
-                onChange={(e) =>
-                  setForm({ ...form, indicaciones: e.target.value })
-                }
-                required
-              />
+            {/* Tabla del Catálogo de Medicaciones */}
+            <div className="overflow-auto rounded-xl border border-stone-200/90">
+              <table className="w-full text-left border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-stone-100/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-stone-200">
+                    <th className="py-3 px-4 w-[20%]">Enfermedad Tratable</th>
+                    <th className="py-3 px-4 w-[20%]">Medicamento (Inventario)</th>
+                    <th className="py-3 px-3 w-[20%]">Dosis</th>
+                    <th className="py-3 px-3 text-center w-[11%]">Días Totales</th>
+                    <th className="py-3 px-4 w-[21%]">Descripción de Administración</th>
+                    <th className="py-3 px-4 text-right w-[8%]">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200/70 text-xs">
+                  {filteredMedications.map((med) => (
+                    <tr key={med.id} className="hover:bg-stone-50/80 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {med.enfermedadNombre}
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-800">
+                        {med.medicamentoNombre}
+                      </td>
+                      <td className="py-3.5 px-3 text-[#185C2B] font-bold">{med.dosis}</td>
+                      <td className="py-3.5 px-3 text-center">
+                        <span className="inline-block bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                          {med.diasTotales} días
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 truncate">{med.descripcion}</td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(med)}
+                          className="px-3 py-1 rounded-lg border border-stone-300 hover:border-[#185C2B] hover:text-[#185C2B] text-slate-700 font-semibold text-xs transition bg-white cursor-pointer"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="avi-figma-modal-footer">
-            <button
-              type="button"
-              className="avi-figma-btn-cancel"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="avi-figma-btn-green">
-              Guardar medicina
-            </button>
+          <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between text-xs text-slate-500 shrink-0">
+            <p className="m-0">
+              Editar una medicación aplica únicamente a diagnósticos futuros; los diagnósticos
+              existentes conservan su duración y fecha de reintegro originales.
+            </p>
+            <span className="font-semibold text-slate-700">
+              Mostrando {filteredMedications.length} medicaciones registradas
+            </span>
           </div>
-        </form>
-      </BaseModal>
+        </section>
+      </main>
 
-      {/* Modal: Ficha Farmacológica */}
-      <BaseModal
-        isOpen={Boolean(detailMed)}
-        onClose={() => setDetailMed(null)}
-        maxWidth="680px"
-      >
-        {detailMed && (
-          <div className="avi-figma-modal-720">
-            <div className="avi-figma-modal-header">
-              <div className="avi-figma-modal-titles">
-                <h2 className="avi-figma-modal-title">
-                  {detailMed.nombre} ({detailMed.id})
-                </h2>
-                <p className="avi-figma-modal-subtitle">
-                  {detailMed.categoria} · Principio activo: {detailMed.principioActivo}
+      {/* 3. MODAL EMERGENTE: REGISTRAR / EDITAR MEDICACIÓN (Spec 008) */}
+      {modalOpen && (
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center z-50">
+          <div className="bg-white w-[560px] rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 m-0">
+                  {editingId ? 'Editar Medicación' : 'Registrar Medicación'}
+                </h3>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">
+                  Defina el protocolo terapéutico para una enfermedad tratable
                 </p>
               </div>
               <button
                 type="button"
-                className="avi-figma-modal-close"
-                onClick={() => setDetailMed(null)}
+                onClick={() => setModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-stone-200/60 flex items-center justify-center transition bg-transparent border-0 cursor-pointer"
               >
-                ×
+                ✕
               </button>
             </div>
 
-            <div className="avi-figma-modal-grid">
-              <div className="avi-figma-field">
-                <label className="avi-figma-label">Vía de administración</label>
-                <div className="avi-figma-readonly-box">{detailMed.via}</div>
-              </div>
-              <div className="avi-figma-field">
-                <label className="avi-figma-label">
-                  Tiempo de retiro obligatorio
+            <form onSubmit={handleSave} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Enfermedad tratable <span className="text-red-600">*</span>
                 </label>
-                <div className="avi-figma-valid-box">
-                  {Number(detailMed.tiempoRetiroDias) > 0
-                    ? `${detailMed.tiempoRetiroDias} días antes del sacrificio`
-                    : 'Sin tiempo de retiro (0 días)'}
-                </div>
+                <select
+                  value={enfermedadId}
+                  onChange={(e) => {
+                    setEnfermedadId(e.target.value);
+                    setFormError('');
+                  }}
+                  className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#185C2B]"
+                >
+                  <option value="">Seleccione una enfermedad tratable del catálogo...</option>
+                  {treatableDiseases.map((enf) => (
+                    <option key={enf.id} value={enf.id}>
+                      {enf.nombre} (Tratable)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1 m-0">
+                  Las enfermedades que requieren sacrificio sanitario no admiten medicación.
+                </p>
               </div>
-              <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-                <label className="avi-figma-label">Posología recomendada</label>
-                <div className="avi-figma-readonly-box">
-                  {detailMed.dosisRecomendada}
-                </div>
-              </div>
-              <div className="avi-figma-field" style={{ gridColumn: '1 / -1' }}>
-                <label className="avi-figma-label">Indicaciones terapéuticas</label>
-                <div className="avi-figma-demand-box">
-                  {detailMed.indicaciones}
-                </div>
-              </div>
-            </div>
 
-            <div className="avi-figma-modal-footer">
-              <button
-                type="button"
-                className="avi-figma-btn-cancel"
-                onClick={() => setDetailMed(null)}
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                className="avi-figma-btn-orange"
-                onClick={() => {
-                  const target = detailMed;
-                  setDetailMed(null);
-                  handleOpenEdit(target);
-                }}
-              >
-                Editar medicina
-              </button>
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Medicamento (Inventario central) <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={medicamentoId}
+                  onChange={(e) => {
+                    setMedicamentoId(e.target.value);
+                    setFormError('');
+                  }}
+                  className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#185C2B]"
+                >
+                  <option value="">Seleccione un medicamento registrado en inventario...</option>
+                  {vetInventoryMedicines.map((med) => (
+                    <option key={med.id} value={med.id}>
+                      {med.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-8">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Dosis <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={dosis}
+                    onChange={(e) => {
+                      setDosis(e.target.value);
+                      setFormError('');
+                    }}
+                    placeholder="Ej. 200 g diluidos en 100 L de agua"
+                    className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#185C2B]"
+                  />
+                </div>
+
+                <div className="col-span-4">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Número total de días <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={diasTotales}
+                    onChange={(e) => {
+                      setDiasTotales(e.target.value);
+                      setFormError('');
+                    }}
+                    placeholder="Ej. 5"
+                    className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#185C2B]"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Entero mayor a 0
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Descripción de administración <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={descripcion}
+                  onChange={(e) => {
+                    setDescripcion(e.target.value);
+                    setFormError('');
+                  }}
+                  placeholder="Indique la vía e instrucciones de administración en el galpón..."
+                  className="w-full rounded-xl border border-stone-300 p-3 text-xs text-slate-800 focus:outline-none focus:border-[#185C2B] resize-none"
+                />
+              </div>
+
+              {formError && (
+                <p className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 m-0">
+                  {formError}
+                </p>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-xs font-semibold text-slate-700 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#185C2B] hover:bg-[#134821] text-white text-xs font-bold shadow-sm transition border-0 cursor-pointer"
+                >
+                  Guardar Medicación
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </BaseModal>
-    </div>
+        </div>
+      )}
+    </VetShell>
   );
 }
 
